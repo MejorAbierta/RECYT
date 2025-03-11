@@ -29,8 +29,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner {
             fputcsv($file, array("ID envío", "ID author", "Nombre", "Apellidos", "Institución", "Correo electrónico"));
 
             $submissions = $this->getSubmissions(array($this->contextId, $dateFrom, $dateTo));
-            foreach ($submissions as $value) {
-                $submissionItem = get_object_vars($value);
+            foreach ($submissions as $submissionItem) {
                 $submissionDao = \DAORegistry::getDAO('SubmissionDAO'); /* @var $submissionDao \SubmissionDAO */
                 $submission = $submissionDao->getById($submissionItem['id']);
                 $authors = $submission->getAuthors();
@@ -79,7 +78,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner {
               AND s.date_submitted >= ?
               AND s.date_submitted <= ?
             GROUP BY s.submission_id", $params
-            );
+            )->GetRows();
     }
 
 }

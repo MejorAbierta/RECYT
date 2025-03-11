@@ -129,17 +129,18 @@ class Issues extends AbstractRunner implements InterfaceRunner {
             LIMIT 3"
             );
 
-        while ($query->valid()) {
-            $row = get_object_vars($query->current());
+        while (!$query->EOF) {
+            $row = $query->getRowAssoc(false);
             $data[] = [
                 'id' => $row['id'],
                 'volume' => $row['volume'],
                 'year' => $row['year'],
                 'number' => $row['number'],
             ];
-            $query->next();
+            $query->MoveNext();
         }
 
+        $query->Close();
         return $data;
     }
 }

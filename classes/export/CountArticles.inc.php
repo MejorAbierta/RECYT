@@ -61,13 +61,12 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
     public function generateCsv($query, $key, $dirFiles)
     {
         if ($query) {
-            $publicationDao = \DAORegistry::getDAO('PublicationDAO'); /* @var $publicationDao \PublicationDAO */
+            $publicationDao = \DAORegistry::getDAO('PublicationDAO'); /* @var $publicationDao PublicationDAO */
 
             $file = fopen($dirFiles . "/envios_".$key.".csv", "w");
             fputcsv($file, array("ID", "Fecha", "Título"));
 
-            foreach ($query as $value) {
-                $row = get_object_vars($value);
+            foreach ($query as $row) {
                 $publication = $publicationDao->getById($row['pub']);
 
                 fputcsv($file, array(
@@ -82,7 +81,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
 
     public function countSubmissionsReceived($submissionDao, $params)
     {
-        $result = $submissionDao->retrieve(
+        return $submissionDao->retrieve(
             "SELECT COUNT(DISTINCT s.submission_id) AS count
 	        FROM submissions s
             LEFT JOIN publications p on p.publication_id = (
@@ -97,9 +96,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND (p.date_published IS NULL OR s.date_submitted < p.date_published)
               AND s.date_submitted >= ?
               AND s.date_submitted <= ?", $params
-            )->current();
-
-        return $result->count;
+            )->Fields('count');
     }
 
     public function getSubmissionsReceived($submissionDao, $params)
@@ -120,12 +117,12 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND s.date_submitted >= ?
               AND s.date_submitted <= ?
             GROUP BY s.submission_id, s.date_submitted, s.current_publication_id", $params
-        );
+        )->GetRows();
     }
 
     public function countSubmissionsAccepted($submissionDao, $params)
     {
-        $result = $submissionDao->retrieve(
+        return $submissionDao->retrieve(
             "SELECT COUNT(DISTINCT s.submission_id) AS count
             FROM submissions as s
             LEFT JOIN publications p on p.publication_id = (
@@ -143,9 +140,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND ed.decision = 1
               AND ed.date_decided >= ?
               AND ed.date_decided <= ?", $params
-            )->current();
-
-            return $result->count;
+            )->Fields('count');
     }
 
     public function getSubmissionsAccepted($submissionDao, $params)
@@ -169,12 +164,12 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND ed.date_decided >= ?
               AND ed.date_decided <= ?
             GROUP BY s.submission_id, ed.date_decided, s.current_publication_id", $params
-        );
+        )->GetRows();
     }
 
     public function countSubmissionsDeclined($submissionDao, $params)
     {
-        $result = $submissionDao->retrieve(
+        return $submissionDao->retrieve(
             "SELECT COUNT(DISTINCT s.submission_id) as count
             FROM submissions as s
             LEFT JOIN publications p on p.publication_id = (
@@ -192,9 +187,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND ed.decision IN(4,9)
               AND ed.date_decided >= ?
               AND ed.date_decided <= ?", $params
-            )->current();
-
-            return $result->count;
+            )->Fields('count');
     }
 
     public function getSubmissionsDeclined($submissionDao, $params)
@@ -218,12 +211,12 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND ed.date_decided >= ?
               AND ed.date_decided <= ?
             GROUP BY s.submission_id, ed.date_decided, s.current_publication_id", $params
-        );
+        )->GetRows();
     }
 
     public function countSubmissionsPublished($submissionDao, $params)
     {
-        $result = $submissionDao->retrieve(
+        return $submissionDao->retrieve(
             "SELECT COUNT(DISTINCT s.submission_id) as count
             FROM submissions as s
             LEFT JOIN publications as p on p.publication_id = (
@@ -240,9 +233,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND s.status = ".STATUS_PUBLISHED."
               AND p.date_published >= ?
               AND p.date_published <= ?", $params
-            )->current();
-
-            return $result->count;
+            )->Fields('count');
     }
 
 
@@ -265,6 +256,6 @@ class CountArticles extends AbstractRunner implements InterfaceRunner {
               AND p.date_published >= ?
               AND p.date_published <= ?
             GROUP BY s.submission_id, p.date_published, s.current_publication_id", $params
-        );
+        )->GetRows();
     }
 }

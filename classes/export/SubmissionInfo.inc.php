@@ -80,8 +80,8 @@ class SubmissionInfo extends AbstractRunner implements InterfaceRunner {
         ");
 
         $content = '';
-        while ($query->valid()) {
-            $row = get_object_vars($query->current());
+        while (!$query->EOF) {
+            $row = $query->getRowAssoc(false);
             $fixedValue = $this->fixSerializedString($row['setting_value']);
             $data = unserialize($fixedValue);
 
@@ -89,9 +89,10 @@ class SubmissionInfo extends AbstractRunner implements InterfaceRunner {
                 if(!empty($value['content'])) $content .= '-'.strip_tags($value['content'])."\n\n";
             }
 
-            $query->next();
+            $query->MoveNext();
         }
 
+        $query->Close();
         return $content;
     }
 

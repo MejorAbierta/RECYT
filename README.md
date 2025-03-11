@@ -1,6 +1,6 @@
 # Plugin de Calidad FECYT
 
-Complemento desarrollado para versiones OJS 3.3x que automatiza la descarga de documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
+Complemento desarrollado para versiones OJS 3.2x (GeneradorInformesRECYT_3.2.tar.gz) y OJS 3.3x (GeneradorInformesRECYT_3.3.tar.gz) que automatiza la descarga de documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
 
 Más información en [https://calidadrevistas.fecyt.es](https://calidadrevistas.fecyt.es)  
 
@@ -34,6 +34,8 @@ Una vez que el plugin está activado, se mostrará, en las acciones del plugin, 
 Desde esta ventana se puede descargar la documentación de la revista, haciendo click en el botón 'Exportar' de cada sección.  
 
 
+
+Este proyecto cuenta con licencia conforme a los términos de la licencia MIT
 
 
 

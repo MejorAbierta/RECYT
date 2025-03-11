@@ -116,117 +116,129 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
         $file = fopen($dirFiles."/Informes_evaluacion.csv", "w");
         if (fputcsv($file, $columns) === false) die("Error al escribir en el archivo CSV\n");
 
-        foreach ($reviewsIterator as $row) {
-			if (substr($row->date_response_due, 11) === '00:00:00') {
-				$row->date_response_due = substr($row->date_response_due, 0, 11) . '23:59:59';
-			}
-			if (substr($row->date_due, 11) === '00:00:00') {
-				$row->date_due = substr($row->date_due, 0, 11) . '23:59:59';
-			}
-			list($overdueResponseDays, $overdueDays) = $this->getOverdueDays($row);
-			$row->overdue_response = $overdueResponseDays;
-			$row->overdue = $overdueDays;
+        while ($row = $reviewsIterator->next()) {
+            if (substr($row['dateresponsedue'], 11) === '00:00:00') {
+                $row['dateresponsedue'] = substr($row['dateresponsedue'], 0, 11) . '23:59:59';
+            }
+            if (substr($row['datedue'], 11) === '00:00:00') {
+                $row['datedue'] = substr($row['datedue'], 0, 11) . '23:59:59';
+            }
+            list($overdueResponseDays, $overdueDays) = $this->getOverdueDays($row);
+            $row['overdueresponse'] = $overdueResponseDays;
+            $row['overdue'] = $overdueDays;
 
-			foreach ($columns as $index => $junk) switch ($index) {
-				case 'stage_id':
-					$columns[$index] = __(\WorkflowStageDAO::getTranslationKeyFromId($row->$index));
-					break;
-				case 'declined':
-				case 'cancelled':
-					$columns[$index] = __($row->$index?'common.yes':'common.no');
-					break;
-				case 'unconsidered':
-					$columns[$index] = __($row->$index?'common.yes':'');
-					break;
-					case 'recommendation':
-					if (isset($recommendations[$row->$index])) {
-						$columns[$index] = (!isset($row->$index)) ? __('common.none') : __($recommendations[$row->$index]);
-					} else {
-						$columns[$index] = '';
-					}
-					break;
-				case 'comments':
-					$reviewAssignment = $reviewAssignmentDao->getById($row->review_id);
-					$body = '';
+            foreach ($columns as $index => $junk) switch ($index) {
+                case 'stage_id':
+                    $columns[$index] = __(\WorkflowStageDAO::getTranslationKeyFromId($row[$index]));
+                    break;
+                case 'declined':
+                    $columns[$index] = __($row[$index]?'common.yes':'common.no');
+                    break;
+                case 'unconsidered':
+                    $columns[$index] = __($row[$index]?'common.yes':'');
+                    break;
+                case 'recommendation':
+                    if (isset($recommendations[$row[$index]])) {
+                        $columns[$index] = (!isset($row[$index])) ? __('common.none') : __($recommendations[$row[$index]]);
+                    } else {
+                        $columns[$index] = '';
+                    }
+                    break;
+                case 'comments':
+                    $reviewAssignment = $reviewAssignmentDao->getById($row['review_id']);
+                    $body = '';
 
-					if ($reviewAssignment->getDateCompleted() != null && ($reviewFormId = $reviewAssignment->getReviewFormId())) {
-						$reviewId = $reviewAssignment->getId();
-						$reviewFormElements = $reviewFormElementDao->getByReviewFormId($reviewFormId);
-						while ($reviewFormElement = $reviewFormElements->next()) {
-							if (!$reviewFormElement->getIncluded()) continue;
-							$body .= \PKPString::stripUnsafeHtml($reviewFormElement->getLocalizedQuestion());
-							$reviewFormResponse = $reviewFormResponseDao->getReviewFormResponse($reviewId, $reviewFormElement->getId());
-							if ($reviewFormResponse) {
-								$possibleResponses = $reviewFormElement->getLocalizedPossibleResponses();
-								if (in_array($reviewFormElement->getElementType(), [REVIEW_FORM_ELEMENT_TYPE_CHECKBOXES, REVIEW_FORM_ELEMENT_TYPE_RADIO_BUTTONS])) {
-									ksort($possibleResponses);
-									$possibleResponses = array_values($possibleResponses);
-								}
-								if (in_array($reviewFormElement->getElementType(), $reviewFormElement->getMultipleResponsesElementTypes())) {
-									if ($reviewFormElement->getElementType() == REVIEW_FORM_ELEMENT_TYPE_CHECKBOXES) {
-										$body .= '<ul>';
-										foreach ($reviewFormResponse->getValue() as $value) {
-											$body .= '<li>' . \PKPString::stripUnsafeHtml($possibleResponses[$value]) . '</li>';
-										}
-										$body .= '</ul>';
-									} else {
-										$body .= '<blockquote>' . \PKPString::stripUnsafeHtml($possibleResponses[$reviewFormResponse->getValue()]) . '</blockquote>';
-									}
-									$body .= '<br>';
-								} else {
-									$body .= '<blockquote>' . nl2br(htmlspecialchars($reviewFormResponse->getValue())) . '</blockquote>';
-								}
-							}
-						}
-					}
+                    if ($reviewAssignment->getDateCompleted() != null && ($reviewFormId = $reviewAssignment->getReviewFormId())) {
+                        $reviewId = $reviewAssignment->getId();
+                        $reviewFormElements = $reviewFormElementDao->getByReviewFormId($reviewFormId);
+                        while ($reviewFormElement = $reviewFormElements->next()) {
+                            if (!$reviewFormElement->getIncluded()) continue;
+                            $body .= strip_tags($reviewFormElement->getLocalizedQuestion());
+                            $reviewFormResponse = $reviewFormResponseDao->getReviewFormResponse($reviewId, $reviewFormElement->getId());
+                            if ($reviewFormResponse) {
+                                $possibleResponses = $reviewFormElement->getLocalizedPossibleResponses();
+                                if (in_array($reviewFormElement->getElementType(), array(REVIEW_FORM_ELEMENT_TYPE_CHECKBOXES, REVIEW_FORM_ELEMENT_TYPE_RADIO_BUTTONS))) {
+                                    ksort($possibleResponses);
+                                    $possibleResponses = array_values($possibleResponses);
+                                }
+                                if (in_array($reviewFormElement->getElementType(), $reviewFormElement->getMultipleResponsesElementTypes())) {
+                                    if ($reviewFormElement->getElementType() == REVIEW_FORM_ELEMENT_TYPE_CHECKBOXES) {
+                                        foreach ($reviewFormResponse->getValue() as $value) {
+                                            $body .= strip_tags($possibleResponses[$value]);
+                                        }
+                                    } else {
+                                        $body .= strip_tags($possibleResponses[$reviewFormResponse->getValue()]);
+                                    }
+                                } else {
+                                    $body .= strip_tags($reviewFormResponse->getValue());
+                                }
+                            }
+                        }
+                    }
 
-					if (isset($comments[$row->submission_id][$row->reviewer_id])) {
-						$columns[$index] = $comments[$row->submission_id][$row->reviewer_id];
-					} else {
-						$columns[$index] = $body;
-					}
-					break;
-				case 'interests':
-					if (isset($interestsArray[$row->reviewer_id])) {
-						$columns[$index] = $interestsArray[$row->reviewer_id];
-					} else {
-						$columns[$index] = '';
-					}
-					break;
-				default:
-					$columns[$index] = $row->$index;
-			}
-			fputcsv($file, $columns);
+                    if (isset($comments[$row['submission_id']][$row['reviewer_id']])) {
+                        $columns[$index] = $comments[$row['submission_id']][$row['reviewer_id']];
+                    } else {
+                        $columns[$index] = $body;
+                    }
+                    break;
+                case 'interests':
+                    if (isset($interestsArray[$row['reviewer_id']])) {
+                        $columns[$index] = $interestsArray[$row['reviewer_id']];
+                    } else {
+                        $columns[$index] = '';
+                    }
+                    break;
+                default:
+                    $columns[$index] = $row[$index];
+            }
+
+            fputcsv($file, $columns);
         }
 
-        rewind($memoryFile);
-        $csvContent = stream_get_contents($memoryFile);
         fclose($file);
     }
 
-    public function getReviewReport($contextId, $submission)
+    public function getReviewReport($contextId, $submissions)
     {
         $locale = \AppLocale::getLocale();
         $submissionDao = \DAORegistry::getDAO('SubmissionDAO'); /* @var $submissionDao \SubmissionDAO */
 
-        $commentsReturner = $submissionDao->retrieve(
-			'SELECT	sc.submission_id,
-				sc.comments,
-				sc.author_id
-			FROM	submission_comments sc
-				JOIN submissions s ON (s.submission_id = sc.submission_id)
-			WHERE	comment_type = ?
-				AND s.context_id = ?
-                AND sc.submission_id IN('.$submission.')',
-			[COMMENT_TYPE_PEER_REVIEW, (int) $contextId]
-		);
+        import('lib.pkp.classes.db.DBRowIterator');
+        $commentsReturner = new \DBRowIterator($submissionDao->retrieve(
+            'SELECT	submission_id,
+				comments,
+				author_id
+			FROM	submission_comments
+			WHERE	submission_id IN('.$submissions.')
+			   AND comment_type = ?',
+            array(
+                COMMENT_TYPE_PEER_REVIEW
+            )
+        ));
 
         $userDao = \DAORegistry::getDAO('UserDAO');
         $site = \Application::get()->getRequest()->getSite();
         $sitePrimaryLocale = $site->getPrimaryLocale();
 
-		$reviewsReturner = $submissionDao->retrieve(
-			'SELECT	r.stage_id AS stage_id,
+        $params = array_merge(
+            array(
+                $locale,
+                'title',
+                'title',
+            ),
+            $userDao->getFetchParameters(),
+            array(
+                'affiliation',
+                'affiliation',
+                $sitePrimaryLocale,
+                'orcid',
+                (int) $contextId
+            )
+        );
+
+        $reviewsReturner = new \DBRowIterator($submissionDao->retrieve(
+            'SELECT	r.stage_id AS stage_id,
 				r.review_id as review_id,
 				r.round AS round,
 				COALESCE(asl.setting_value, aspl.setting_value) AS submission,
@@ -238,90 +250,77 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
 				u.country AS country,
 				us.setting_value AS orcid,
 				COALESCE(uasl.setting_value, uas.setting_value) AS affiliation,
-				r.date_assigned AS date_assigned,
-				r.date_notified AS date_notified,
-				r.date_confirmed AS date_confirmed,
-				r.date_completed AS date_completed,
-				r.date_acknowledged AS date_acknowledged,
-				r.date_reminded AS date_reminded,
-				r.date_due AS date_due,
-				r.date_response_due AS date_response_due,
+				r.date_assigned AS dateAssigned,
+				r.date_notified AS dateNotified,
+				r.date_confirmed AS dateConfirmed,
+				r.date_completed AS dateCompleted,
+				r.date_acknowledged AS dateAcknowledged,
+				r.date_reminded AS dateReminded,
+				r.date_due AS dateDue,
+				r.date_response_due AS dateResponseDue,
 				(r.declined=1) AS declined,
 				(r.unconsidered=1) AS unconsidered,
-				(r.cancelled=1) AS cancelled,
 				r.recommendation AS recommendation
 			FROM	review_assignments r
 				LEFT JOIN submissions a ON r.submission_id = a.submission_id
 				LEFT JOIN publications p ON a.current_publication_id = p.publication_id
 				LEFT JOIN publication_settings asl ON (p.publication_id = asl.publication_id AND asl.locale = ? AND asl.setting_name = ?)
-				LEFT JOIN publication_settings aspl ON (p.publication_id = aspl.publication_id AND aspl.locale = a.locale AND aspl.setting_name = ?)
+				LEFT JOIN publication_settings aspl ON (p.publication_id = aspl.publication_id AND aspl.locale = p.locale AND aspl.setting_name = ?)
 				LEFT JOIN users u ON (u.user_id = r.reviewer_id)
 				' . $userDao->getFetchJoins() .'
 				LEFT JOIN user_settings uas ON (u.user_id = uas.user_id AND uas.setting_name = ? AND uas.locale = a.locale)
 				LEFT JOIN user_settings uasl ON (u.user_id = uasl.user_id AND uasl.setting_name = ? AND uasl.locale = ?)
 				LEFT JOIN user_settings us ON (u.user_id = us.user_id AND us.setting_name = ?)
 			WHERE	 a.context_id = ?
+			AND r.submission_id IN('.$submissions.')
 			ORDER BY submission',
-			array_merge(
-				[
-					$locale,
-					'title',
-					'title',
-				],
-				$userDao->getFetchParameters(),
-				[
-					'affiliation',
-					'affiliation',
-					$sitePrimaryLocale,
-					'orcid',
-					(int) $contextId
-				]
-			)
-		);
+            $params
+        ));
 
         import('lib.pkp.classes.user.InterestManager');
-		$interestManager = new \InterestManager();
-		$assignedReviewerIds = $submissionDao->retrieve(
-			'SELECT	r.reviewer_id
+        $interestManager = new \InterestManager();
+        $assignedReviewerIds = new \DBRowIterator($submissionDao->retrieve(
+            'SELECT	r.reviewer_id
 			FROM	review_assignments r
 				LEFT JOIN submissions a ON r.submission_id = a.submission_id
 			WHERE	 a.context_id = ?
+			AND r.submission_id IN('.$submissions.')
 			ORDER BY r.reviewer_id',
-			[(int) $contextId]
-		);
+            array((int) $contextId)
+        ));
+        $interests = array();
+        while ($row = $assignedReviewerIds->next()) {
+            if (!array_key_exists($row['reviewer_id'], $interests)) {
+                $user = $userDao->getById($row['reviewer_id']);
+                $reviewerInterests = $interestManager->getInterestsString($user);
+                if (!empty($reviewerInterests))	$interests[$row['reviewer_id']] = $reviewerInterests;
+            }
+        }
 
-		$interests = [];
-		while ($row = $assignedReviewerIds->next()) {
-			if (!array_key_exists($row['reviewer_id'], $interests)) {
-				$user = $userDao->getById($row['reviewer_id']);
-				$reviewerInterests = $interestManager->getInterestsString($user);
-				if (!empty($reviewerInterests))	$interests[$row['reviewer_id']] = $reviewerInterests;
-			}
-		}
-        
-		return [$commentsReturner, $reviewsReturner, $interests];
+        return array($commentsReturner, $reviewsReturner, $interests);
     }
 
     public function getOverdueDays($row)
     {
-		$responseDueTime = strtotime($row->date_response_due);
-		$reviewDueTime = strtotime($row->date_due);
-		$overdueResponseDays = $overdueDays = '';
-		if (!$row->date_confirmed){ // no response
-			if($responseDueTime < time()) { // response overdue
-				$datediff = time() - $responseDueTime;
-				$overdueResponseDays = round($datediff / (60 * 60 * 24));
-			} elseif ($reviewDueTime < time()) { // review overdue but not response
-				$datediff = time() - $reviewDueTime;
-				$overdueDays = round($datediff / (60 * 60 * 24));
-			}
-		} elseif (!$row->date_completed) { // response given, but not completed
-			if ($reviewDueTime < time()) { // review due
-				$datediff = time() - $reviewDueTime;
-				$overdueDays = round($datediff / (60 * 60 * 24));
-			}
-		}
-		return [$overdueResponseDays, $overdueDays];
+        $responseDueTime = strtotime($row['dateresponsedue']);
+        $reviewDueTime = strtotime($row['datedue']);
+        $overdueResponseDays = $overdueDays = '';
+        if (!$row['dateconfirmed']){ 
+            if($responseDueTime < time()) { 
+                $datediff = time() - $responseDueTime;
+                $overdueResponseDays = round($datediff / (60 * 60 * 24));
+            } elseif ($reviewDueTime < time()) { 
+                $datediff = time() - $reviewDueTime;
+                $overdueDays = round($datediff / (60 * 60 * 24));
+            }
+        } elseif (!$row['datecompleted']) { 
+            if ($reviewDueTime < time()) { 
+                $datediff = time() - $reviewDueTime;
+                $overdueDays = round($datediff / (60 * 60 * 24));
+            }
+        }
+
+        return array($overdueResponseDays, $overdueDays);
     }
 
     public function getReview($submission, $context, $dirFiles)
@@ -334,14 +333,14 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
             LEFT JOIN submissions s ON r.submission_id = s.submission_id
 			WHERE s.context_id = '.$this->contextId.'
 			AND r.submission_id ='.$submission.';'
-        );
+        )->GetArray();
 
         $text = "Tipo de revisión de la revista: ".$this->getNameMethod($context->getData('defaultReviewMode'))."\n\n";
         $text .= "Revisión por pares acorde a indicaciones\nEnvío: $submission\n";
 
-        foreach ($result as $row) {
-            $reviewAssignment = $reviewAssignmentDao->getById($row->review_id);
-            $text .= "- Revisión ".$row->review_id." de la ronda ".$row->round.": ".$this->getNameMethod($reviewAssignment->getReviewMethod()). "\n";
+        foreach ($query as $row) {
+            $reviewAssignment = $reviewAssignmentDao->getById($row['review_id']);
+            $text .= "- Revisión ".$row['review_id']." de la ronda ".$row['round'].": ".$this->getNameMethod($reviewAssignment->getReviewMethod()). "\n";
         }
 
         $file = fopen($dirFiles."/Tipologia_revision.txt", "w");
@@ -351,13 +350,11 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
 
     public function generateHistoryFile($submissionId, $dirFiles)
     {
-        $entriesEvent = $this->getEventLog($submissionId);
-        $entriesEmail = $this->getEmailLog($submissionId);
-        $entries = array_merge($entriesEvent, $entriesEmail);
+        $entries = array_merge($this->getEventLog($submissionId), $this->getEmailLog($submissionId));
 
         usort($entries, function($a, $b) {
-            if ($a->date == $b->date) return 0;
-            return $a->date < $b->date ? 1 : -1;
+            if ($a['date'] == $b['date']) return 0;
+            return $a['date'] < $b['date'] ? 1 : -1;
         });
 
         $file = fopen($dirFiles."/Historial.csv", "w");
@@ -365,14 +362,14 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
         $eventLogDao = \DAORegistry::getDAO('SubmissionEventLogDAO'); /* @var $submissionEventLogDao \SubmissionEventLogDAO */
 
         foreach ($entries as $entry) {
-            if ($entry->message) {
-                $eventLog = $eventLogDao->getById($entry->id);
+            if ($entry['message']) {
+                $eventLog = $eventLogDao->getById($entry['id']);
                 $eventParams = $eventLog->getParams();
 
                 fputcsv($file, array(
-                    $entry->id,
-                    $userDao->getUserFullName($entry->user_id),
-                    date("Y-m-d", strtotime($entry->date)),
+                    $entry['id'],
+                    $userDao->getUserFullName($entry['user_id']),
+                    date("Y-m-d", strtotime($entry['date'])),
                     __($eventLog->getMessage(), array(
                         'authorName' => $eventParams['authorName'],
                         'editorName' => $eventParams['editorName'],
@@ -388,57 +385,47 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
                         'userGroupName' => $eventParams['userGroupName'],
                         'fileRevision' => $eventParams['fileRevision'],
                         'userName' => $eventParams['userName'],
-                        'submissionFileId' => $eventParams['submissionFileId'],
                     )),
                 ));
             } else {
-               fputcsv($file, array(
-                    $entry->id,
-                    $userDao->getUserFullName($entry->sender_id),
-                    date("Y-m-d", strtotime($entry->date)),
-                    __('submission.event.subjectPrefix') . ' ' . $entry->subject,
-                   strip_tags($entry->body),
-               ));
+                fputcsv($file, array(
+                    $entry['id'],
+                    $userDao->getUserFullName($entry['sender_id']),
+                    date("Y-m-d", strtotime($entry['date'])),
+                    __('submission.event.subjectPrefix') . ' ' . $entry['subject'],
+                    strip_tags($entry['body']),
+                ));
             }
         }
 
-        rewind($file);
-        $csvContent = stream_get_contents($file);
         fclose($file);
     }
 
     public function getEventLog($submission)
     {
         $eventLogDao = \DAORegistry::getDAO('SubmissionEventLogDAO'); /* @var $eventLogDao \SubmissionEventLogDAO */
-        $result = $eventLogDao->retrieve(
+        return $eventLogDao->retrieve(
             "SELECT log_id as id, assoc_type as type, date_logged as date, message, user_id
             FROM event_log el
             WHERE assoc_id = ".$submission.";"
-        );
-
-		return iterator_to_array($result);
+        )->GetRows();
     }
 
     public function getEmailLog($submission)
     {
         $submissionEmailLogDao = \DAORegistry::getDAO('SubmissionEmailLogDAO'); /* @var $submissionEmailLogDao \SubmissionEmailLogDAO */
 
-        $result = $submissionEmailLogDao->retrieve(
+        return $submissionEmailLogDao->retrieve(
             "SELECT log_id as id, assoc_type as type, date_sent as date, subject, sender_id, body
             FROM email_log el
             WHERE assoc_id = ".$submission.";"
-        );
-
-		return iterator_to_array($result);
+        )->GetRows();
     }
 
     public function getSubmissionsFiles($submission, $fileManager, $dirFiles)
     {
         $submissionFileDao = \DAORegistry::getDAO('SubmissionFileDAO'); /* @var $submissionFileDao \SubmissionFileDAO */
-        $submissionFileSubmission = \Services::get('submissionFile')->getMany([
-			'submissionIds' => [$submission],
-			'includeDependentFiles' => true,
-		]);
+        $submissionFileSubmission = $submissionFileDao->getBySubmissionId($submission);
 
         if ($submissionFileSubmission) {
             $mainFolder = $dirFiles.'/Archivos';
@@ -447,16 +434,17 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
 
             foreach ($submissionFileSubmission as $submissionFile) {
                 $id = $submissionFile->getId();
-                $path = \Config::getVar('files', 'files_dir').'/'.$submissionFile->getData('path');
+                $path = $submissionFile->getFilePath();
                 $folder = $mainFolder.'/';
 
-                switch ($submissionFile->getData('fileStage')) {
+                switch ($submissionFile->getFileStage()) {
                     case SUBMISSION_FILE_SUBMISSION: $folder .= 'submission'; break;
-                    case SUBMISSION_FILE_NOTE: $folder .= 'note'; break;
                     case SUBMISSION_FILE_REVIEW_FILE: $folder .= 'submission/review'; break;
                     case SUBMISSION_FILE_REVIEW_ATTACHMENT: $folder .= 'submission/review/attachment'; break;
                     case SUBMISSION_FILE_REVIEW_REVISION: $folder .= 'submission/review/revision'; break;
                     case SUBMISSION_FILE_FINAL: $folder .= 'submission/final'; break;
+                    case SUBMISSION_FILE_FAIR_COPY: $folder .= 'submission/fairCopy'; break;
+                    case SUBMISSION_FILE_EDITOR: $folder .= 'submission/editor'; break;
                     case SUBMISSION_FILE_COPYEDIT: $folder .= 'submission/copyedit'; break;
                     case SUBMISSION_FILE_DEPENDENT: $folder .= 'submission/proof'; break;
                     case SUBMISSION_FILE_PROOF: $folder .= 'submission/proof'; break;
@@ -464,14 +452,14 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
                     case SUBMISSION_FILE_ATTACHMENT: $folder .= 'attachment'; break;
                     case SUBMISSION_FILE_QUERY: $folder .= 'submission/query'; break;
                 }
-                
+
                 if(file_exists($path)) {
-                    $listId .= $id."\n";
+                    $listId .= $id . "\n";
 
                     if(!$fileManager->fileExists($folder)) $fileManager->mkdirtree($folder);
-                    copy($path, $folder.'/'.$id.'_'.$submissionFile->getLocalizedData('name'));
+                    copy($path, $folder.'/'.$id.'_'.$submissionFile->getOriginalFileName());
                 } else {
-                    $listId .= $id."\t Archivo no encontrado\n";
+                    $listId .= $id . "\t Archivo no encontrado\n";
                 }
             }
 
@@ -492,7 +480,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner {
             WHERE s.status=".STATUS_DECLINED."
               AND pp.setting_name='issueId'
               AND pp.setting_value IN (".$issues.")"
-        );
+        )->GetArray();
 
         $submissions = array();
         foreach ($query as $row) {

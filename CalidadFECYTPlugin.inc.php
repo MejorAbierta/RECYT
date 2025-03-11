@@ -172,11 +172,10 @@ class CalidadFECYTPlugin extends GenericPlugin
                 WHERE pp_issue.setting_name = 'issueId'
                   AND pp_title.setting_name = 'title'
                   AND pp_title.locale='".$locale."'"
-        );
+        )->GetArray();
 
         $submissions = array();
-        foreach ($query as $value) {
-            $row = get_object_vars($value);
+        foreach ($query as $row) {
             $title = $row['title'];
 
             $submissions[] = [

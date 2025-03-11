@@ -27,8 +27,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner {
             fputcsv($file, array("ID", "Nombre", "Apellidos", "Institución", "Correo electrónico"));
 
             $reviewers = $this->getReviewers(array($dateFrom, $dateTo, $this->contextId));
-            foreach ($reviewers as $value) {
-                $reviewer = get_object_vars($value);
+            foreach ($reviewers as $reviewer) {
                 fputcsv($file, array(
                     $reviewer['id'],
                     $reviewer['givenName'],
@@ -80,6 +79,6 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner {
                     u.user_id,
                     u.username,
                     u.email;", $params
-            );
+            )->GetRows();
     }
 }
