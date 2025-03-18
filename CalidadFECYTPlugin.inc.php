@@ -167,7 +167,7 @@ class CalidadFECYTPlugin extends GenericPlugin
                     WHERE journal_id = ".$contextId."
                       AND published = 1
                     ORDER BY date_published DESC
-                    LIMIT 3
+                    LIMIT 4
                 ) AS latest_issues ON pp_issue.setting_value = latest_issues.issue_id
                 WHERE pp_issue.setting_name = 'issueId'
                   AND pp_title.setting_name = 'title'
