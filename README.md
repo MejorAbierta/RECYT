@@ -1,24 +1,24 @@
 # Plugin de Calidad FECYT
 
-Complemento desarrollado para versiones OJS 3.2x (GeneradorInformesRECYT_3.2.tar.gz) y OJS 3.3x (GeneradorInformesRECYT_3.3.tar.gz) que automatiza la descarga de documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
+Complemento desarrollado para versiones **OJS 3.2x** que automatiza la descarga de documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
+
+Las distitas versiones del plugin se publican aquí: [https://github.com/FECYT/RECYT/releases](https://github.com/FECYT/RECYT/releases)
 
 Más información en [https://calidadrevistas.fecyt.es](https://calidadrevistas.fecyt.es)  
 
 ### Instalación
 ##### - Instalación web
 
-Solo si se proporciona el plugin en formato '.tar.gz'  
+- Descargar la [última versión del plugin](https://github.com/FECYT/RECYT/releases) en formato '.tar.gz' para la versión de OJS que corresponda.  
 - Desde el panel de administración general o de una revista  
 - Acceder a la página de 'Módulos'  
 - Hacer click en 'Cargar un nuevo módulo' y subir el fichero .tar.gz proporcionado
 
 ##### - Instalación manual  
 
-Solo si no se proporciona el plugin en formato '.tar.gz'  
-Copiar los contenidos de este repositorio a:  
-```
-[OJS]/plugins/generic/calidadfecyt/
-```
+- Descargar la [última versión del plugin](https://github.com/FECYT/RECYT/releases) en formato '.tar.gz' para la versión de OJS que corresponda.  
+- Descomprimir y copiar los contenidos de este repositorio en `[OJS]/plugins/generic/calidadfecyt/`
+- Confirmar que se ha descomprimido en el directorio indicado y con los permisos correctos. 
 
 ### Activación del plugin  
 
@@ -32,11 +32,4 @@ Activar el plugin desde el OJS:
 
 Una vez que el plugin está activado, se mostrará, en las acciones del plugin, un enlace 'Ajustes' que abrirá una nueva ventana.  
 Desde esta ventana se puede descargar la documentación de la revista, haciendo click en el botón 'Exportar' de cada sección.  
-
-
-
-Este proyecto cuenta con licencia conforme a los términos de la licencia MIT
-
-
-
 
