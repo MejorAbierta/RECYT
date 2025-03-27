@@ -2,7 +2,9 @@
 
 Módulo para OJS que automatiza la descarga de parte de la documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
 
-El plugin ha sido desarrollado para OJS 3.2 y OJS 3.3, siendo esta última la versión recomendada.
+Inicialmente el plugin ha sido desarrollado para OJS 3.2 y OJS 3.3, siendo esta última la versión recomendada.
+Esta versión del plugin es una variación para OJS 3.4 aportada por XXXX a la comunidad.
+
 Las distitas versiones del plugin se publican aquí: [https://github.com/FECYT/RECYT/releases](https://github.com/FECYT/RECYT/releases)
 
 Más información en [https://calidadrevistas.fecyt.es](https://calidadrevistas.fecyt.es)  
