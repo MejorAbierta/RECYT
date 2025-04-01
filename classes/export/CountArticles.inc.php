@@ -73,7 +73,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
         $filePath = $dirFiles . "/envios_" . $key . ".csv";
         $file = fopen($filePath, 'w');
 
-        fputcsv($file, ["ID", "Fecha", "Título"]);
+        fputcsv($file, ["ID", "DOI", "Fecha", "Título"]);
 
         foreach ($submissions as $submission) {
             $publication = $submission->getCurrentPublication();
@@ -82,6 +82,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
 
             fputcsv($file, [
                 $submission->getId(),
+                $publication?->getStoredPubId('doi') ?? '', // Añadimos DOI
                 date("Y-m-d", strtotime($date)),
                 $publication?->getLocalizedData('title', AppLocale::getLocale()) ?? '',
             ]);

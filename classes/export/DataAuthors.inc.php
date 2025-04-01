@@ -28,33 +28,33 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
         $this->contextId = $context->getId();
 
         try {
-            $dateTo = date('Ymd', strtotime("-1 day"));
-            $dateFrom = date("Ymd", strtotime("-1 year", strtotime($dateTo)));
+            $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
+            $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
             $locale = AppLocale::getLocale();
 
             $file = fopen($dirFiles . "/autores_" . $dateFrom . "_" . $dateTo . ".csv", "w");
-            fputcsv($file, ["ID envío", "ID author", "Nombre", "Apellidos", "Institución", "Correo electrónico"]);
+            fputcsv($file, ["ID envío", "DOI", "ID autor", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
 
             $submissions = $this->getSubmissions([$this->contextId, $dateFrom, $dateTo]);
 
             foreach ($submissions as $submission) {
-
-
                 $publicationId = $submission->getData('currentPublicationId');
                 if ($publicationId) {
+                    $publication = Repo::publication()->get($publicationId);
                     $authors = Repo::author()
                         ->getCollector()
                         ->filterByPublicationIds([$publicationId])
                         ->getMany();
 
                     foreach ($authors as $author) {
-
                         fputcsv($file, [
                             $submission->getId(),
+                            $publication->getStoredPubId('doi') ?? '',
                             $author->getId(),
                             $author->getData('givenName', $locale) ?? '',
                             $author->getData('familyName', $locale) ?? '',
                             $author->getData('affiliation', $locale) ?? '',
+                            $author->getCountry() ?? '',
                             $author->getData('email') ?? '',
                         ]);
                     }

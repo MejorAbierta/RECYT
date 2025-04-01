@@ -38,7 +38,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
                 $file = fopen($dirFiles . $nameFile . ".csv", "w");
 
                 if (!empty($data['results'])) {
-                    $columns = ["Sección", "Título"];
+                    $columns = ["Sección", "Título", "DOI"];
                     for ($a = 1; $a <= $countAuthors; $a++) {
                         $columns = array_merge($columns, [
                             "Nombre (autor " . $a . ")",
@@ -50,7 +50,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
                     fputcsv($file, array_values($columns));
 
                     foreach ($submissions as $submission) {
-                        $results = [$submission['section'], $submission['title']];
+                        $results = [$submission['section'], $submission['title'], $submission['doi']];
                         $arrayValues = array_values($submission['authors']);
                         $authorCount = count($arrayValues);
                         for ($a = 0; $a < $authorCount; $a++) {
@@ -110,13 +110,15 @@ class Issues extends AbstractRunner implements InterfaceRunner
             $results[] = [
                 'title' => $publication->getLocalizedData('title', AppLocale::getLocale()),
                 'section' => $section && !$section->getHideTitle() ? $section->getLocalizedTitle() : '',
+                'doi' => $publication->getStoredPubId('doi') ?? '', // Añadimos DOI
                 'authors' => array_map(function ($author) {
                     $userGroup = Repo::userGroup()->get($author->getData('userGroupId'));
                     return [
                         'givenName' => $author->getGivenName(AppLocale::getLocale()) ?? '',
                         'familyName' => $author->getFamilyName(AppLocale::getLocale()) ?? '',
                         'affiliation' => $author->getAffiliation(AppLocale::getLocale()) ?? '',
-                        'userGroup' => $userGroup ? $userGroup->getLocalizedName() : ''
+                        'userGroup' => $userGroup ? $userGroup->getLocalizedName() : '',
+                        'country' => $author->getCountry() ?? '' // Añadimos país
                     ];
                 }, $authors)
             ];

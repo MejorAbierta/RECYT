@@ -70,50 +70,42 @@ class CalidadFECYTPlugin extends GenericPlugin
         switch ($request->getUserVar('verb')) {
             case 'settings':
                 $templateParams = array(
-                    "journalTitle" => $context->getLocalizedName()
+                    "journalTitle" => $context->getLocalizedName(),
+                    "defaultDateFrom" => date('Y-m-d', strtotime("-1 year")),
+                    "defaultDateTo" => date('Y-m-d', strtotime("-1 day")),
+                    "baseUrl" => $router->url($request, null, null, 'manage', null, array(
+                        'plugin' => $this->getName(),
+                        'category' => 'generic'
+                    ))
                 );
 
-                $exportAllAction = new LinkAction('exportAllLinkAction', new RedirectAction($router->url($request, null, null, 'manage', null, array(
-                    'verb' => 'exportAll',
-                    'plugin' => $this->getName(),
-                    'category' => 'generic',
-                )), '_self'), __('plugins.generic.calidadfecyt.export.all'), null);
-
+                $calidadFECYT = new CalidadFECYT(array('request' => $request, 'context' => $context));
                 $linkActions = array();
-
                 $index = 0;
                 foreach ($calidadFECYT->getExportClasses() as $export) {
                     $exportAction = new stdClass();
                     $exportAction->name = $export;
-                    $exportAction->linkAction = new LinkAction('export' . $export . 'LinkAction', new RedirectAction($router->url($request, null, null, 'manage', null, array(
-                        'verb' => 'export',
-                        'plugin' => $this->getName(),
-                        'category' => 'generic',
-                        'exportIndex' => $index
-                    )), '_self'), __('plugins.generic.calidadfecyt.export.' . $export), null);
-
+                    $exportAction->index = $index;
                     $linkActions[] = $exportAction;
                     $index++;
                 }
 
                 $templateParams['submissions'] = $this->getSubmissions($context->getId());
-                $templateParams['exportAllAction'] = $exportAllAction;
+                $templateParams['exportAllAction'] = true;
                 $templateParams['linkActions'] = $linkActions;
                 $templateMgr->assign($templateParams);
-
-                $templateMgr->assign('editorialUrl', $router->url(
-                    $request,
-                    null,
-                    null,
-                    'manage',
-                    null,
-                    array()
-                ));
 
                 return new JSONMessage(true, $templateMgr->fetch($this->getTemplateResource('settings_form.tpl')));
             case 'export':
                 try {
                     $request->checkCSRF();
+                    $params = array(
+                        'request' => $request,
+                        'context' => $context,
+                        'dateFrom' => $request->getUserVar('dateFrom') ? date('Ymd', strtotime($request->getUserVar('dateFrom'))) : null,
+                        'dateTo' => $request->getUserVar('dateTo') ? date('Ymd', strtotime($request->getUserVar('dateTo'))) : null
+                    );
+                    $calidadFECYT = new CalidadFECYT($params);
                     $calidadFECYT->export();
                 } catch (Exception $e) {
                     $dispatcher = $request->getDispatcher();
@@ -123,6 +115,13 @@ class CalidadFECYTPlugin extends GenericPlugin
             case 'exportAll':
                 try {
                     $request->checkCSRF();
+                    $params = array(
+                        'request' => $request,
+                        'context' => $context,
+                        'dateFrom' => $request->getUserVar('dateFrom') ? date('Ymd', strtotime($request->getUserVar('dateFrom'))) : null,
+                        'dateTo' => $request->getUserVar('dateTo') ? date('Ymd', strtotime($request->getUserVar('dateTo'))) : null
+                    );
+                    $calidadFECYT = new CalidadFECYT($params);
                     $calidadFECYT->exportAll();
                 } catch (Exception $e) {
                     $dispatcher = $request->getDispatcher();
@@ -132,13 +131,20 @@ class CalidadFECYTPlugin extends GenericPlugin
             case 'editorial':
                 try {
                     $request->checkCSRF();
+                    $params = array(
+                        'request' => $request,
+                        'context' => $context,
+                        'dateFrom' => $request->getUserVar('dateFrom') ? date('Ymd', strtotime($request->getUserVar('dateFrom'))) : null,
+                        'dateTo' => $request->getUserVar('dateTo') ? date('Ymd', strtotime($request->getUserVar('dateTo'))) : null
+                    );
+                    $calidadFECYT = new CalidadFECYT($params);
                     $calidadFECYT->editorial($request->getUserVar('submission'));
                 } catch (Exception $e) {
                     $dispatcher = $request->getDispatcher();
                     $dispatcher->handle404();
                 }
                 return;
-            case 'default':
+            default:
                 $dispatcher = $request->getDispatcher();
                 $dispatcher->handle404();
                 return;

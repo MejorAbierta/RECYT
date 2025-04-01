@@ -43,6 +43,9 @@ class CalidadFECYT
         $this->imports();
         LogUtils::setLogType("WEB");
         $this->params = $params;
+
+        $this->params['dateFrom'] = $this->params['dateFrom'] ?? date('Ymd', strtotime("-1 year"));
+        $this->params['dateTo'] = $this->params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
     }
 
     public function getExportClasses()

@@ -27,12 +27,12 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
         $this->contextId = $context->getId();
 
         try {
-            $dateTo = date('Ymd', strtotime("-1 day"));
-            $dateFrom = date("Ymd", strtotime("-1 year", strtotime($dateTo)));
+            $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
+            $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
             $locale = AppLocale::getLocale();
 
             $file = fopen($dirFiles . "/revisores_" . $dateFrom . "_" . $dateTo . ".csv", "w");
-            fputcsv($file, ["ID", "Nombre", "Apellidos", "Institución", "Correo electrónico"]);
+            fputcsv($file, ["ID", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
 
             $reviewers = $this->getReviewers([$dateFrom, $dateTo, $this->contextId]);
             foreach ($reviewers as $reviewer) {
@@ -41,6 +41,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
                     $reviewer->getData('givenName', $locale) ?? '',
                     $reviewer->getData('familyName', $locale) ?? '',
                     $reviewer->getData('affiliation', $locale) ?? '',
+                    $reviewer->getCountry() ?? '',
                     $reviewer->getData('email') ?? ''
                 ]);
             }
