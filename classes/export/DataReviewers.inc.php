@@ -36,12 +36,20 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
 
             $reviewers = $this->getReviewers([$dateFrom, $dateTo, $this->contextId]);
             foreach ($reviewers as $reviewer) {
+                $affiliation = LocaleUtils::getLocalizedDataWithFallback($reviewer, 'affiliation', $locale);
+
+                if (is_string($affiliation) && json_decode($affiliation, true) !== null) {
+                    $affiliationData = json_decode($affiliation, true);
+
+                    $affiliation = $affiliationData[$locale] ?? ($affiliationData['en_US'] ?? reset($affiliationData)); // Fallback to en_US or the first available value
+                }
+
 
                 fputcsv($file, [
                     $reviewer->getId(),
                     LocaleUtils::getLocalizedDataWithFallback($reviewer, 'givenName', $locale),
                     LocaleUtils::getLocalizedDataWithFallback($reviewer, 'familyName', $locale),
-                    LocaleUtils::getLocalizedDataWithFallback($reviewer, 'affiliation', $locale),
+                    $affiliation,
                     $reviewer->getCountry() ?? '',
                     $reviewer->getData('email') ?? ''
                 ]);

@@ -29,7 +29,9 @@
 				<legend>{translate key="plugins.generic.calidadfecyt.export.all"}</legend>
 			</p>
 			<fieldset class="pkpFormField pkpFormField--options">
-				<legend>{translate key="plugins.generic.calidadfecyt.exportAll.description"}</legend>
+				<legend>
+					{translate key="plugins.generic.calidadfecyt.exportAll.description"}
+				</legend>
 				<button id="exportAllButton" type="submit" class="pkpButton"
 					onclick="document.getElementById('verb').value='exportAll';">
 					{translate key="plugins.generic.calidadfecyt.exportAll"}
@@ -43,20 +45,19 @@
 		<p class="pkpHeader__title">
 			<legend>{translate key="plugins.generic.calidadfecyt.export.single"}</legend>
 		</p>
-
 		{if $linkActions}
 			{foreach from=$linkActions item=exportAction}
 				<fieldset class="pkpFormField pkpFormField--options">
-					<legend>{translate key="plugins.generic.calidadfecyt.export."|cat:$exportAction->name|cat:".description"}
+					<legend>
+						{translate key="plugins.generic.calidadfecyt.export."|cat:$exportAction->name|cat:".description"}
 					</legend>
 					<button id="{$exportAction->name|cat:'Button'}" type="submit" class="pkpButton"
 						onclick="document.getElementById('verb').value='export'; document.getElementById('exportIndex').value='{$exportAction->index}';">
-						{translate key="plugins.generic.calidadfecyt.export."|cat:$exportAction->name}
+						{translate key="plugins.generic.calidadfecyt.exportAll"}
 					</button>
 				</fieldset>
 			{/foreach}
 		{/if}
-
 		<div class="separator"></div>
 		<br />
 
@@ -65,7 +66,9 @@
 		</p>
 
 		<fieldset class="pkpFormField pkpFormField--options">
-			<legend>{translate key="plugins.generic.calidadfecyt.export.editorial.description"}</legend>
+			<legend>
+				{translate key="plugins.generic.calidadfecyt.export.editorial.description"}
+			</legend>
 			<select name="submission" id="submission" style="width: 90%; margin-bottom: 10px">
 				{foreach from=$submissions item=submission}
 					<option value="{$submission['id']}">{$submission['id']} - {$submission['title']}</option>
@@ -78,7 +81,6 @@
 			</button>
 		</fieldset>
 	</form>
-
 	<script>
 		document.getElementById('exportForm').addEventListener('submit', function(e) {
 			e.preventDefault();

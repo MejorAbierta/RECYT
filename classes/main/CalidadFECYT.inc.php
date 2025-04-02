@@ -20,6 +20,7 @@ class CalidadFECYT
         "Issues",
         "JournalIdentity",
         "SubmissionInfo",
+        "Statistics",
         "URLs",
     ];
 
