@@ -5,6 +5,7 @@ namespace CalidadFECYT\classes\export;
 use CalidadFECYT\classes\abstracts\AbstractRunner;
 use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
+use CalidadFECYT\classes\utils\LocaleUtils; // Importar la clase
 use PKP\file\FileManager;
 use PKP\core\PKPApplication;
 use APP\facades\Repo;
@@ -47,13 +48,14 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                         ->getMany();
 
                     foreach ($authors as $author) {
+
                         fputcsv($file, [
                             $submission->getId(),
                             $publication->getStoredPubId('doi') ?? '',
                             $author->getId(),
-                            $author->getData('givenName', $locale) ?? '',
-                            $author->getData('familyName', $locale) ?? '',
-                            $author->getData('affiliation', $locale) ?? '',
+                            LocaleUtils::getLocalizedDataWithFallback($author, 'givenName', $locale),
+                            LocaleUtils::getLocalizedDataWithFallback($author, 'familyName', $locale),
+                            LocaleUtils::getLocalizedDataWithFallback($author, 'affiliation', $locale),
                             $author->getCountry() ?? '',
                             $author->getData('email') ?? '',
                         ]);

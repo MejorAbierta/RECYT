@@ -5,8 +5,8 @@ namespace CalidadFECYT\classes\export;
 use CalidadFECYT\classes\abstracts\AbstractRunner;
 use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
+use CalidadFECYT\classes\utils\LocaleUtils;
 use PKP\file\FileManager;
-use PKP\core\PKPApplication;
 use APP\facades\Repo;
 use APP\i18n\AppLocale;
 
@@ -36,11 +36,12 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
 
             $reviewers = $this->getReviewers([$dateFrom, $dateTo, $this->contextId]);
             foreach ($reviewers as $reviewer) {
+
                 fputcsv($file, [
                     $reviewer->getId(),
-                    $reviewer->getData('givenName', $locale) ?? '',
-                    $reviewer->getData('familyName', $locale) ?? '',
-                    $reviewer->getData('affiliation', $locale) ?? '',
+                    LocaleUtils::getLocalizedDataWithFallback($reviewer, 'givenName', $locale),
+                    LocaleUtils::getLocalizedDataWithFallback($reviewer, 'familyName', $locale),
+                    LocaleUtils::getLocalizedDataWithFallback($reviewer, 'affiliation', $locale),
                     $reviewer->getCountry() ?? '',
                     $reviewer->getData('email') ?? ''
                 ]);
@@ -75,4 +76,5 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
 
         return $collector->getMany($query);
     }
+
 }

@@ -9,6 +9,7 @@ use PKP\file\FileManager;
 use APP\facades\Repo;
 use PKP\submission\PKPSubmission;
 use APP\i18n\AppLocale;
+use CalidadFECYT\classes\utils\LocaleUtils;
 
 class Issues extends AbstractRunner implements InterfaceRunner
 {
@@ -110,15 +111,15 @@ class Issues extends AbstractRunner implements InterfaceRunner
             $results[] = [
                 'title' => $publication->getLocalizedData('title', AppLocale::getLocale()),
                 'section' => $section && !$section->getHideTitle() ? $section->getLocalizedTitle() : '',
-                'doi' => $publication->getStoredPubId('doi') ?? '', // Añadimos DOI
+                'doi' => $publication->getStoredPubId('doi') ?? '',
                 'authors' => array_map(function ($author) {
                     $userGroup = Repo::userGroup()->get($author->getData('userGroupId'));
                     return [
-                        'givenName' => $author->getGivenName(AppLocale::getLocale()) ?? '',
-                        'familyName' => $author->getFamilyName(AppLocale::getLocale()) ?? '',
-                        'affiliation' => $author->getAffiliation(AppLocale::getLocale()) ?? '',
+                        'givenName' => LocaleUtils::getLocalizedDataWithFallback($author, 'givenName'),
+                        'familyName' => LocaleUtils::getLocalizedDataWithFallback($author, 'familyName'),
+                        'affiliation' => LocaleUtils::getLocalizedDataWithFallback($author, 'affiliation'),
                         'userGroup' => $userGroup ? $userGroup->getLocalizedName() : '',
-                        'country' => $author->getCountry() ?? '' // Añadimos país
+                        'country' => $author->getCountry() ?? ''
                     ];
                 }, $authors)
             ];
