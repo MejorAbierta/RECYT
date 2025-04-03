@@ -52,7 +52,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             $this->generateHistoryFile($submissionObj, $dirFiles);
             $this->getReview($submissionObj, $context, $dirFiles);
             if (method_exists($this, 'getSubmissionsFiles')) {
-                $this->getSubmissionsFiles($submissionObj, $fileManager, $dirFiles);
+                $this->getSubmissionsFiles($submissionObj->getId(), $fileManager, $dirFiles);
             } else {
                 error_log("Método getSubmissionsFiles no definido en Editorial");
                 throw new \Exception("Método getSubmissionsFiles no encontrado");
@@ -282,7 +282,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
 
 
         foreach ($entries as $entry) {
-            // Determinar el ID del usuario según el tipo de entrada
             $userId = $entry instanceof \PKP\log\EmailLogEntry ? $entry->getSenderId() : $entry->getUserId();
             $user = Repo::user()->get($userId);
 
@@ -295,7 +294,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                 ]);
             } elseif ($entry instanceof \PKP\log\SubmissionEventLogEntry) {
                 $params = $entry->getParams();
-                // Depuración detallada
                 error_log("Message: " . $entry->getMessage() . " | Params: " . json_encode($params));
                 $defaultParams = [
                     'authorName' => '',
@@ -316,7 +314,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     'submissionFile' => $params['originalFileName'] ?? $params['name'] ?? 'Archivo no especificado' // Más fallbacks
                 ];
                 $combinedParams = array_merge($defaultParams, $params);
-                // Depuración de parámetros combinados
                 error_log("Combined Params: " . json_encode($combinedParams));
                 try {
                     $message = __($entry->getMessage(), $combinedParams);
@@ -335,26 +332,29 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         }
         fclose($file);
     }
-
-    public function getSubmissionsFiles($submission, $fileManager, $dirFiles)
+    public function getSubmissionsFiles($submissionId, $fileManager, $dirFiles)
     {
-        $submissionFiles = Repo::submissionFile()->getCollector()->getMany([
-            'submissionIds' => [$submission->getId()],
-            'includeDependentFiles' => true,
-        ]);
+        error_log("getSubmissionsFiles called with submissionId: " . $submissionId); // Depuración
+        $submissionFileRepo = Repo::submissionFile();
+        $submissionFiles = $submissionFileRepo->getCollector()->filterBySubmissionIds([$submissionId])->getMany();
 
-        if ($submissionFiles->count()) {
+
+        if ($submissionFiles->count() > 0) {
             $mainFolder = $dirFiles . '/Archivos';
-            $fileManager->mkdir($mainFolder);
+            if (!$fileManager->fileExists($mainFolder)) {
+                $fileManager->mkdirtree($mainFolder);
+            }
             $listId = "";
 
-            foreach ($submissionFiles as $file) {
-                $id = $file->getId();
-                $path = $file->getData('path');
-                $fullPath = \Config::getVar('files', 'files_dir') . '/' . $path;
+            foreach ($submissionFiles as $submissionFile) {
+                $id = $submissionFile->getId();
+                $path = \Config::getVar('files', 'files_dir') . '/' . $submissionFile->getData('path');
+                $fileStage = $submissionFile->getData('fileStage');
+                $submissionIdFromFile = $submissionFile->getData('submissionId'); // Verificar el submissionId del archivo
+                error_log("Processing file ID: $id, submissionId: $submissionIdFromFile, fileStage: $fileStage, path: $path"); // Depuración
 
                 $folder = $mainFolder . '/';
-                switch ($file->getData('fileStage')) {
+                switch ($fileStage) {
                     case SUBMISSION_FILE_SUBMISSION:
                         $folder .= 'submission';
                         break;
@@ -391,18 +391,30 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     case SUBMISSION_FILE_QUERY:
                         $folder .= 'submission/query';
                         break;
+                    default:
+                        error_log("Unknown fileStage: $fileStage for file ID: $id");
+                        continue;
                 }
 
-                if (file_exists($fullPath)) {
+                if (file_exists($path)) {
                     $listId .= $id . "\n";
-                    $fileManager->mkdir($folder);
-                    copy($fullPath, $folder . '/' . $id . '_' . $file->getLocalizedData('name'));
+                    if (!$fileManager->fileExists($folder)) {
+                        $fileManager->mkdirtree($folder);
+                    }
+                    $destination = $folder . '/' . $id . '_' . $submissionFile->getLocalizedData('name');
+                    copy($path, $destination);
+                    error_log("Copied file to: $destination"); // Depuración
                 } else {
                     $listId .= $id . "\t Archivo no encontrado\n";
+                    error_log("File not found at path: $path"); // Depuración
                 }
             }
 
-            file_put_contents($mainFolder . '/ID_archivos.txt', $listId);
+            $file = fopen($mainFolder . '/ID_archivos.txt', "w");
+            fwrite($file, $listId);
+            fclose($file);
+        } else {
+            error_log("No files found for submissionId: $submissionId"); // Depuración
         }
     }
 

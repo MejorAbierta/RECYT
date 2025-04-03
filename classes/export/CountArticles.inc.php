@@ -5,49 +5,43 @@ namespace CalidadFECYT\classes\export;
 use CalidadFECYT\classes\abstracts\AbstractRunner;
 use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
-use PKP\file\FileManager;
-use PKP\core\PKPApplication;
-use APP\facades\Repo;
-use PKP\submission\PKPSubmission;
-use APP\decision\Decision;
 use APP\i18n\AppLocale;
+use APP\facades\Repo;
 
 class CountArticles extends AbstractRunner implements InterfaceRunner
 {
-    private int $contextId;
+    protected $contextId;
 
     public function run(&$params)
     {
-        $fileManager = new FileManager();
-        $context = $params["context"] ?? null;
-        $dirFiles = $params['temporaryFullFilePath'] ?? '';
-
+        $fileManager = new \FileManager();
+        $context = $params["context"];
+        $dirFiles = $params['temporaryFullFilePath'];
         if (!$context) {
             throw new \Exception("Revista no encontrada");
         }
-
         $this->contextId = $context->getId();
 
         try {
-            $dateTo = date('Ymd', strtotime("-1 day"));
-            $dateFrom = date("Ymd", strtotime("-1 year", strtotime($dateTo)));
-
-            $params2 = [$this->contextId, $dateFrom, $dateTo];
-            $paramsPublished = [
+            $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
+            $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
+            $params2 = array($this->contextId, $dateFrom, $dateTo);
+            $paramsPublished = array(
                 $this->contextId,
                 date('Y-m-d', strtotime($dateFrom)),
                 date('Y-m-d', strtotime($dateTo)),
-            ];
+            );
 
-            $data = "Nº de artículos para la revista " . PKPApplication::get()->getContextDAO()->getById($this->contextId)?->getPath();
+            $data = "Nº de artículos para la revista " . \Application::getContextDAO()->getById($this->contextId)->getPath();
             $data .= " desde el " . date('d-m-Y', strtotime($dateFrom)) . " hasta el " . date('d-m-Y', strtotime($dateTo)) . "\n";
             $data .= "Recibidos: " . $this->countSubmissionsReceived($params2) . "\n";
             $data .= "Aceptados: " . $this->countSubmissionsAccepted($params2) . "\n";
             $data .= "Rechazados: " . $this->countSubmissionsDeclined($params2) . "\n";
             $data .= "Publicados: " . $this->countSubmissionsPublished($paramsPublished);
 
-            $filePath = $dirFiles . "/numero_articulos.txt";
-            file_put_contents($filePath, $data);
+            $file = fopen($dirFiles . "/numero_articulos.txt", "w");
+            fwrite($file, $data);
+            fclose($file);
 
             $this->generateCsv($this->getSubmissionsReceived($params2), 'recibidos', $dirFiles);
             $this->generateCsv($this->getSubmissionsAccepted($params2), 'aceptados', $dirFiles);
@@ -64,199 +58,149 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
         }
     }
 
-    private function generateCsv(iterable $submissions, string $key, string $dirFiles): void
+    private function generateCsv($submissions, $type, $dirFiles)
     {
-        if (empty($submissions)) {
-            return;
-        }
-
-        $filePath = $dirFiles . "/envios_" . $key . ".csv";
-        $file = fopen($filePath, 'w');
-
-        fputcsv($file, ["ID", "DOI", "Fecha", "Título"]);
+        $file = fopen($dirFiles . "/envios_" . $type . ".csv", "w");
+        fputcsv($file, array("ID", "DOI", "Título", "Fecha"));
 
         foreach ($submissions as $submission) {
-            $publication = $submission->getCurrentPublication();
-            $date = $key === 'recibidos' ? $submission->getData('dateSubmitted') :
-                ($key === 'publicados' ? $publication?->getData('datePublished') : $submission->getData('dateLastActivity'));
+            $submissionObj = Repo::submission()->get($submission['submission_id']);
+            $publication = $submissionObj->getCurrentPublication();
+            $doi = $publication->getStoredPubId('doi') ?? 'N/A';
 
-            fputcsv($file, [
-                $submission->getId(),
-                $publication?->getStoredPubId('doi') ?? '', // Añadimos DOI
-                date("Y-m-d", strtotime($date)),
-                $publication?->getLocalizedData('title', AppLocale::getLocale()) ?? '',
-            ]);
+            fputcsv($file, array(
+                $submission['submission_id'],
+                $doi,
+                $submission['title'],
+                $submission['date']
+            ));
         }
         fclose($file);
     }
 
-    private function countSubmissionsReceived(array $params): int
+    private function countSubmissionsReceived($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_QUEUED]);
-
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->where('s.date_submitted', '>=', $params[1])
-            ->where('s.date_submitted', '<=', $params[2]);
-
-        return $collector->getCount($query);
+        $submissions = $this->getSubmissionsReceived($params);
+        return count($submissions);
     }
 
-    private function getSubmissionsReceived(array $params): iterable
+    private function countSubmissionsAccepted($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_QUEUED]);
-
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->where('s.date_submitted', '>=', $params[1])
-            ->where('s.date_submitted', '<=', $params[2]);
-
-        return $collector->getMany($query);
+        $submissions = $this->getSubmissionsAccepted($params);
+        return count($submissions);
     }
 
-    private function countSubmissionsAccepted(array $params): int
+    private function countSubmissionsDeclined($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_QUEUED]);
-
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->join('edit_decisions as ed', 'ed.submission_id', '=', 's.submission_id')
-            ->where('ed.decision', Decision::ACCEPT)
-            ->where('ed.date_decided', '>=', $params[1])
-            ->where('ed.date_decided', '<=', $params[2])
-            ->distinct('s.submission_id');
-
-        return $collector->getCount($query);
+        $submissions = $this->getSubmissionsDeclined($params);
+        return count($submissions);
     }
 
-    private function getSubmissionsAccepted(array $params): iterable
+    private function countSubmissionsPublished($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_QUEUED]);
-
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->join('edit_decisions as ed', 'ed.submission_id', '=', 's.submission_id')
-            ->where('ed.decision', Decision::ACCEPT)
-            ->where('ed.date_decided', '>=', $params[1])
-            ->where('ed.date_decided', '<=', $params[2])
-            ->distinct('s.submission_id');
-
-        return $collector->getMany($query);
+        $submissions = $this->getSubmissionsPublished($params);
+        return count($submissions);
     }
 
-    private function countSubmissionsDeclined(array $params): int
+    private function getSubmissionsReceived($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_DECLINED]);
+        $contextId = $params[0];
+        $dateFrom = $params[1];
+        $dateTo = $params[2];
+        $locale = AppLocale::getLocale();
 
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->join('edit_decisions as ed', 'ed.submission_id', '=', 's.submission_id')
-            ->whereIn('ed.decision', [
-                Decision::DECLINE,
-                Decision::INITIAL_DECLINE
-            ])
-            ->where('ed.date_decided', '>=', $params[1])
-            ->where('ed.date_decided', '<=', $params[2])
-            ->distinct('s.submission_id');
+        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->getMany();
 
-        return $collector->getCount($query);
+
+        $filteredSubmissions = [];
+        foreach ($submissions as $submission) {
+            $dateSubmitted = strtotime($submission->getDateSubmitted());
+            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
+                $publication = $submission->getCurrentPublication();
+                $filteredSubmissions[] = [
+                    'submission_id' => $submission->getId(),
+                    'title' => $publication->getLocalizedData('title', $locale),
+                    'date' => $submission->getDateSubmitted()
+                ];
+            }
+        }
+        return $filteredSubmissions;
     }
 
-    private function getSubmissionsDeclined(array $params): iterable
+    private function getSubmissionsAccepted($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_DECLINED]);
+        $contextId = $params[0];
+        $dateFrom = $params[1];
+        $dateTo = $params[2];
+        $locale = \AppLocale::getLocale();
 
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->join('edit_decisions as ed', 'ed.submission_id', '=', 's.submission_id')
-            ->whereIn('ed.decision', [
-                Decision::DECLINE,
-                Decision::INITIAL_DECLINE
-            ])
-            ->where('ed.date_decided', '>=', $params[1])
-            ->where('ed.date_decided', '<=', $params[2])
-            ->distinct('s.submission_id');
+        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->filterByStatus([STATUS_PUBLISHED])->getMany();
 
-        return $collector->getMany($query);
+
+        $filteredSubmissions = [];
+        foreach ($submissions as $submission) {
+            $dateSubmitted = strtotime($submission->getDateSubmitted());
+            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
+                $publication = $submission->getCurrentPublication();
+                $filteredSubmissions[] = [
+                    'submission_id' => $submission->getId(),
+                    'title' => $publication->getLocalizedData('title', $locale),
+                    'date' => $submission->getDateSubmitted()
+                ];
+            }
+        }
+        return $filteredSubmissions;
     }
 
-    private function countSubmissionsPublished(array $params): int
+    private function getSubmissionsDeclined($params)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_PUBLISHED]);
+        $contextId = $params[0];
+        $dateFrom = $params[1];
+        $dateTo = $params[2];
+        $locale = \AppLocale::getLocale();
 
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->where('po.date_published', '>=', $params[1])
-            ->where('po.date_published', '<=', $params[2]);
+        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->filterByStatus([STATUS_DECLINED])->getMany();
 
-        return $collector->getCount($query);
+
+        $filteredSubmissions = [];
+        foreach ($submissions as $submission) {
+            $dateSubmitted = strtotime($submission->getDateSubmitted());
+            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
+                $publication = $submission->getCurrentPublication();
+                $filteredSubmissions[] = [
+                    'submission_id' => $submission->getId(),
+                    'title' => $publication->getLocalizedData('title', $locale),
+                    'date' => $submission->getDateSubmitted()
+                ];
+            }
+        }
+        return $filteredSubmissions;
     }
 
-    private function getSubmissionsPublished(array $params): iterable
+    private function getSubmissionsPublished($params)
     {
-        $collector = Repo::submission()
+        $contextId = $params[0];
+        $dateFrom = $params[1];
+        $dateTo = $params[2];
+        $locale = \AppLocale::getLocale();
+
+        $submissions = Repo::submission()
             ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_PUBLISHED]);
+            ->filterByContextIds([$contextId])
+            ->filterByStatus([STATUS_PUBLISHED])->getMany();
 
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->where('po.date_published', '>=', $params[1])
-            ->where('po.date_published', '<=', $params[2]);
-
-        return $collector->getMany($query);
+        $filteredSubmissions = [];
+        foreach ($submissions as $submission) {
+            $publication = $submission->getCurrentPublication();
+            $datePublished = $publication ? $publication->getData('datePublished') : null;
+            if ($datePublished && strtotime($datePublished) >= strtotime($dateFrom) && strtotime($datePublished) <= strtotime($dateTo)) {
+                $filteredSubmissions[] = [
+                    'submission_id' => $submission->getId(),
+                    'title' => $publication->getLocalizedData('title', $locale),
+                    'date' => $datePublished
+                ];
+            }
+        }
+        return $filteredSubmissions;
     }
 }

@@ -7,9 +7,7 @@ use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
 use CalidadFECYT\classes\utils\LocaleUtils; // Importar la clase
 use PKP\file\FileManager;
-use PKP\core\PKPApplication;
 use APP\facades\Repo;
-use PKP\submission\PKPSubmission;
 use APP\i18n\AppLocale;
 
 class DataAuthors extends AbstractRunner implements InterfaceRunner
@@ -36,7 +34,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
             $file = fopen($dirFiles . "/autores_" . $dateFrom . "_" . $dateTo . ".csv", "w");
             fputcsv($file, ["ID envío", "DOI", "ID autor", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
 
-            $submissions = $this->getSubmissions([$this->contextId, $dateFrom, $dateTo]);
+            $submissions = $this->getSubmissions($dateFrom, $dateTo);
 
             foreach ($submissions as $submission) {
                 $publicationId = $submission->getData('currentPublicationId');
@@ -48,7 +46,6 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                         ->getMany();
 
                     foreach ($authors as $author) {
-
                         fputcsv($file, [
                             $submission->getId(),
                             $publication->getStoredPubId('doi') ?? '',
@@ -75,23 +72,23 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
         }
     }
 
-    public function getSubmissions(array $params): iterable
+    private function getSubmissions($dateFrom, $dateTo)
     {
-        $collector = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$params[0]])
-            ->filterByStatus([PKPSubmission::STATUS_QUEUED]);
+        $submissionRepo = Repo::submission();
 
-        $query = $collector->getQueryBuilder()
-            ->where('po.status', '=', PKPSubmission::STATUS_PUBLISHED)
-            ->where(function ($q) {
-                $q->whereNull('po.date_published')
-                    ->orWhere('s.date_submitted', '<', 'po.date_published');
-            })
-            ->where('s.date_submitted', '>=', $params[1])
-            ->where('s.date_submitted', '<=', $params[2])
-            ->distinct('s.submission_id');
+        $collector = $submissionRepo->getCollector()
+            ->filterByContextIds([$this->contextId]);
 
-        return $collector->getMany($query);
+        $submissions = $collector->getMany();
+
+        $filteredSubmissions = [];
+        foreach ($submissions as $submission) {
+            $dateSubmitted = strtotime($submission->getDateSubmitted());
+            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
+                $filteredSubmissions[] = $submission;
+            }
+        }
+
+        return $filteredSubmissions;
     }
 }

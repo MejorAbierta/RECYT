@@ -35,15 +35,14 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
             fputcsv($file, ["ID", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
 
             $reviewers = $this->getReviewers([$dateFrom, $dateTo, $this->contextId]);
+
             foreach ($reviewers as $reviewer) {
                 $affiliation = LocaleUtils::getLocalizedDataWithFallback($reviewer, 'affiliation', $locale);
 
                 if (is_string($affiliation) && json_decode($affiliation, true) !== null) {
                     $affiliationData = json_decode($affiliation, true);
-
-                    $affiliation = $affiliationData[$locale] ?? ($affiliationData['en_US'] ?? reset($affiliationData)); // Fallback to en_US or the first available value
+                    $affiliation = $affiliationData[$locale] ?? ($affiliationData['en_US'] ?? reset($affiliationData));
                 }
-
 
                 fputcsv($file, [
                     $reviewer->getId(),
@@ -51,7 +50,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
                     LocaleUtils::getLocalizedDataWithFallback($reviewer, 'familyName', $locale),
                     $affiliation,
                     $reviewer->getCountry() ?? '',
-                    $reviewer->getData('email') ?? ''
+                    $reviewer->getEmail() ?? '' // Cambiado de getData('email') a getEmail()
                 ]);
             }
 
@@ -67,22 +66,39 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
         }
     }
 
-    public function getReviewers(array $params): iterable
+    private function getReviewers($params)
     {
-        $collector = Repo::user()
-            ->getCollector()
-            ->filterByRoleIds([\ROLE_ID_REVIEWER])
-            ->filterByContextIds([$params[2]]);
+        [$dateFrom, $dateTo, $contextId] = $params;
 
-        $query = $collector->getQueryBuilder()
-            ->join('review_assignments as ra', 'ra.reviewer_id', '=', 'u.user_id')
-            ->join('submissions as s', 's.submission_id', '=', 'ra.submission_id')
-            ->where('ra.date_completed', '>=', $params[0])
-            ->where('ra.date_completed', '<=', $params[1])
-            ->where('s.context_id', '=', $params[2])
-            ->distinct('u.user_id');
+        $reviewAssignmentDao = \DAORegistry::getDAO('ReviewAssignmentDAO');
+        $result = $reviewAssignmentDao->retrieve(
+            "SELECT DISTINCT ra.reviewer_id
+         FROM review_assignments ra
+         LEFT JOIN submissions s ON (s.submission_id = ra.submission_id)
+         WHERE s.context_id = ?
+         AND ra.date_completed IS NOT NULL
+         AND ra.date_completed >= ?
+         AND ra.date_completed <= ?",
+            [$contextId, $dateFrom, $dateTo]
+        );
 
-        return $collector->getMany($query);
+        $reviewerIds = [];
+        foreach ($result as $row) {
+            $reviewerIds[] = (int) $row->reviewer_id;
+        }
+        $reviewerIds = array_unique($reviewerIds);
+
+        if (empty($reviewerIds)) {
+            return new \ArrayIterator([]);
+        }
+
+        $userRepo = Repo::user();
+
+
+        $collector = $userRepo->getCollector()
+            ->filterByUserIds($reviewerIds);
+
+        $users = $collector->getMany();
+        return $users;
     }
-
 }
