@@ -13,6 +13,7 @@ use APP\i18n\AppLocale;
 use PKP\submission\SubmissionComment;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 use PKP\log\EmailLogDAO;
+
 class Editorial extends AbstractRunner implements InterfaceRunner
 {
     private int $contextId;
@@ -294,7 +295,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                 ]);
             } elseif ($entry instanceof \PKP\log\SubmissionEventLogEntry) {
                 $params = $entry->getParams();
-                error_log("Message: " . $entry->getMessage() . " | Params: " . json_encode($params));
                 $defaultParams = [
                     'authorName' => '',
                     'editorName' => '',
@@ -314,7 +314,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     'submissionFile' => $params['originalFileName'] ?? $params['name'] ?? 'Archivo no especificado'
                 ];
                 $combinedParams = array_merge($defaultParams, $params);
-                error_log("Combined Params: " . json_encode($combinedParams));
                 try {
                     $message = __($entry->getMessage(), $combinedParams);
                 } catch (\Exception $e) {
@@ -326,7 +325,24 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     $entry->getId(),
                     $user ? $user->getFullName() : '',
                     $entry->getDateLogged(),
-                    'Evento genérico: ' . $entry->getEventType()
+                    __($entry->getMessage(), array(
+                        'authorName' => $entry->getLocalizedData('authorName'),
+                        'editorName' => $entry->getLocalizedData('editorName'),
+                        'submissionId' => $entry->getLocalizedData('submissionId'),
+                        'submissionFileId' => $entry->getLocalizedData('submissionFileId'),
+                        'decision' => $entry->getLocalizedData('decision'),
+                        'round' => $entry->getLocalizedData('round'),
+                        'reviewerName' => $entry->getLocalizedData('reviewerName'),
+                        'fileId' => $entry->getLocalizedData('fileId'),
+                        'username' => $entry->getLocalizedData('username'),
+                        'name' => $entry->getLocalizedData('name'),
+                        'originalFileName' => $entry->getLocalizedData('originalFileName'),
+                        'title' => $entry->getLocalizedData('title'),
+                        'userGroupName' => $entry->getLocalizedData('userGroupName'),
+                        'fileRevision' => $entry->getLocalizedData('fileRevision'),
+                        'filename' => $entry->getLocalizedData('filename'),
+                        'userName' => $entry->getLocalizedData('userName'),
+                    )),
                 ]);
             }
         }
