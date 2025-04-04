@@ -34,7 +34,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         if (!$submission) {
             throw new \Exception("Envío no encontrado");
         }
-        $this->submissionId = $submission; // Asumimos que $submission es el ID en este contexto
+        $this->submissionId = $submission;
 
         try {
             AppLocale::requireComponents(LOCALE_COMPONENT_PKP_SUBMISSION, LOCALE_COMPONENT_PKP_USER, LOCALE_COMPONENT_APP_SUBMISSION);
@@ -134,7 +134,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         $file = fopen($dirFiles . "/Informes_evaluacion.csv", "w");
         fputcsv($file, array_keys($columns));
 
-        $locale = AppLocale::getLocale(); // Get the current locale
+        $locale = AppLocale::getLocale();
 
         foreach ($reviewAssignments as $review) {
             $reviewer = Repo::user()->get($review->getReviewerId());
@@ -311,7 +311,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     'fileRevision' => '',
                     'userName' => '',
                     'submissionFileId' => '',
-                    'submissionFile' => $params['originalFileName'] ?? $params['name'] ?? 'Archivo no especificado' // Más fallbacks
+                    'submissionFile' => $params['originalFileName'] ?? $params['name'] ?? 'Archivo no especificado'
                 ];
                 $combinedParams = array_merge($defaultParams, $params);
                 error_log("Combined Params: " . json_encode($combinedParams));
@@ -334,7 +334,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
     }
     public function getSubmissionsFiles($submissionId, $fileManager, $dirFiles)
     {
-        error_log("getSubmissionsFiles called with submissionId: " . $submissionId); // Depuración
+        error_log("getSubmissionsFiles called with submissionId: " . $submissionId);
         $submissionFileRepo = Repo::submissionFile();
         $submissionFiles = $submissionFileRepo->getCollector()->filterBySubmissionIds([$submissionId])->getMany();
 
@@ -350,9 +350,8 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                 $id = $submissionFile->getId();
                 $path = \Config::getVar('files', 'files_dir') . '/' . $submissionFile->getData('path');
                 $fileStage = $submissionFile->getData('fileStage');
-                $submissionIdFromFile = $submissionFile->getData('submissionId'); // Verificar el submissionId del archivo
-                error_log("Processing file ID: $id, submissionId: $submissionIdFromFile, fileStage: $fileStage, path: $path"); // Depuración
-
+                $submissionIdFromFile = $submissionFile->getData('submissionId');
+                error_log("Processing file ID: $id, submissionId: $submissionIdFromFile, fileStage: $fileStage, path: $path");
                 $folder = $mainFolder . '/';
                 switch ($fileStage) {
                     case SUBMISSION_FILE_SUBMISSION:
@@ -403,10 +402,10 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     }
                     $destination = $folder . '/' . $id . '_' . $submissionFile->getLocalizedData('name');
                     copy($path, $destination);
-                    error_log("Copied file to: $destination"); // Depuración
+                    error_log("Copied file to: $destination");
                 } else {
                     $listId .= $id . "\t Archivo no encontrado\n";
-                    error_log("File not found at path: $path"); // Depuración
+                    error_log("File not found at path: $path");
                 }
             }
 
@@ -414,7 +413,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             fwrite($file, $listId);
             fclose($file);
         } else {
-            error_log("No files found for submissionId: $submissionId"); // Depuración
+            error_log("No files found for submissionId: $submissionId");
         }
     }
 

@@ -5,7 +5,7 @@ namespace CalidadFECYT\classes\export;
 use CalidadFECYT\classes\abstracts\AbstractRunner;
 use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
-use CalidadFECYT\classes\utils\LocaleUtils; // Importar la clase
+use CalidadFECYT\classes\utils\LocaleUtils;
 use PKP\file\FileManager;
 use APP\facades\Repo;
 use APP\i18n\AppLocale;
@@ -32,7 +32,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
             $locale = AppLocale::getLocale();
 
             $file = fopen($dirFiles . "/autores_" . $dateFrom . "_" . $dateTo . ".csv", "w");
-            fputcsv($file, ["ID envío", "DOI", "ID autor", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
+            fputcsv($file, ["ID envío", "DOI", "ID autor", "Nombre", "Apellidos", "Institución", "País", "Filiación extranjera", "Correo electrónico"]);
 
             $submissions = $this->getSubmissions($dateFrom, $dateTo);
 
@@ -46,6 +46,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                         ->getMany();
 
                     foreach ($authors as $author) {
+                        $$isForeign = $author->getData('country') ? ($author->getData('country') !== 'ES' ? 'Sí' : 'No') : '';
                         fputcsv($file, [
                             $submission->getId(),
                             $publication->getStoredPubId('doi') ?? '',
@@ -54,6 +55,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                             LocaleUtils::getLocalizedDataWithFallback($author, 'familyName', $locale),
                             LocaleUtils::getLocalizedDataWithFallback($author, 'affiliation', $locale),
                             $author->getCountry() ?? '',
+                            $isForeign,
                             $author->getData('email') ?? '',
                         ]);
                     }
@@ -80,12 +82,15 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
             ->filterByContextIds([$this->contextId]);
 
         $submissions = $collector->getMany();
-
         $filteredSubmissions = [];
+
         foreach ($submissions as $submission) {
-            $dateSubmitted = strtotime($submission->getDateSubmitted());
-            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
-                $filteredSubmissions[] = $submission;
+            $publication = $submission->getCurrentPublication();
+            if ($publication) {
+                $datePublished = strtotime($publication->getData('datePublished'));
+                if ($datePublished >= strtotime($dateFrom) && $datePublished <= strtotime($dateTo)) {
+                    $filteredSubmissions[] = $submission;
+                }
             }
         }
 

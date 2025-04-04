@@ -5,34 +5,42 @@ namespace CalidadFECYT\classes\export;
 use CalidadFECYT\classes\abstracts\AbstractRunner;
 use CalidadFECYT\classes\interfaces\InterfaceRunner;
 use CalidadFECYT\classes\utils\ZipUtils;
-use APP\i18n\AppLocale;
+use Illuminate\Support\Facades\DB;
+use PKP\file\FileManager;
 use APP\facades\Repo;
 
 class CountArticles extends AbstractRunner implements InterfaceRunner
 {
-    protected $contextId;
+    private $contextId;
 
     public function run(&$params)
     {
-        $fileManager = new \FileManager();
+        $fileManager = new FileManager();
         $context = $params["context"];
         $dirFiles = $params['temporaryFullFilePath'];
+
         if (!$context) {
             throw new \Exception("Revista no encontrada");
         }
+
         $this->contextId = $context->getId();
 
         try {
-            $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
-            $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
-            $params2 = array($this->contextId, $dateFrom, $dateTo);
-            $paramsPublished = array(
+            if (!isset($params['dateFrom']) || !isset($params['dateTo'])) {
+                throw new \Exception("Date range parameters are required.");
+            }
+            $dateFrom = $params['dateFrom'];
+            $dateTo = $params['dateTo'];
+
+            $params2 = [$this->contextId, $dateFrom, $dateTo];
+            $paramsPublished = [
                 $this->contextId,
                 date('Y-m-d', strtotime($dateFrom)),
                 date('Y-m-d', strtotime($dateTo)),
-            );
+            ];
 
-            $data = "Nº de artículos para la revista " . \Application::getContextDAO()->getById($this->contextId)->getPath();
+            $contextDao = \APP\core\Application::getContextDAO();
+            $data = "Nº de artículos para la revista " . $contextDao->getById($this->contextId)->getPath();
             $data .= " desde el " . date('d-m-Y', strtotime($dateFrom)) . " hasta el " . date('d-m-Y', strtotime($dateTo)) . "\n";
             $data .= "Recibidos: " . $this->countSubmissionsReceived($params2) . "\n";
             $data .= "Aceptados: " . $this->countSubmissionsAccepted($params2) . "\n";
@@ -58,149 +66,218 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
         }
     }
 
-    private function generateCsv($submissions, $type, $dirFiles)
+    public function generateCsv($results, $key, $dirFiles)
     {
-        $file = fopen($dirFiles . "/envios_" . $type . ".csv", "w");
-        fputcsv($file, array("ID", "DOI", "Título", "Fecha"));
+        if ($results && count($results) > 0) {
+            $file = fopen($dirFiles . "/envios_" . $key . ".csv", "w");
+            fputcsv($file, ["ID", "Fecha", "Título"]);
 
-        foreach ($submissions as $submission) {
-            $submissionObj = Repo::submission()->get($submission['submission_id']);
-            $publication = $submissionObj->getCurrentPublication();
-            $doi = $publication->getStoredPubId('doi') ?? 'N/A';
+            foreach ($results as $row) {
+                $publication = Repo::publication()->get($row->pub);
+                $title = $publication ? $publication->getLocalizedFullTitle(null, 'text') : '';
 
-            fputcsv($file, array(
-                $submission['submission_id'],
-                $doi,
-                $submission['title'],
-                $submission['date']
-            ));
-        }
-        fclose($file);
-    }
-
-    private function countSubmissionsReceived($params)
-    {
-        $submissions = $this->getSubmissionsReceived($params);
-        return count($submissions);
-    }
-
-    private function countSubmissionsAccepted($params)
-    {
-        $submissions = $this->getSubmissionsAccepted($params);
-        return count($submissions);
-    }
-
-    private function countSubmissionsDeclined($params)
-    {
-        $submissions = $this->getSubmissionsDeclined($params);
-        return count($submissions);
-    }
-
-    private function countSubmissionsPublished($params)
-    {
-        $submissions = $this->getSubmissionsPublished($params);
-        return count($submissions);
-    }
-
-    private function getSubmissionsReceived($params)
-    {
-        $contextId = $params[0];
-        $dateFrom = $params[1];
-        $dateTo = $params[2];
-        $locale = AppLocale::getLocale();
-
-        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->getMany();
-
-
-        $filteredSubmissions = [];
-        foreach ($submissions as $submission) {
-            $dateSubmitted = strtotime($submission->getDateSubmitted());
-            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
-                $publication = $submission->getCurrentPublication();
-                $filteredSubmissions[] = [
-                    'submission_id' => $submission->getId(),
-                    'title' => $publication->getLocalizedData('title', $locale),
-                    'date' => $submission->getDateSubmitted()
-                ];
+                fputcsv($file, [
+                    $row->id,
+                    date("Y-m-d", strtotime($row->date)),
+                    $title,
+                ]);
             }
+            fclose($file);
         }
-        return $filteredSubmissions;
     }
 
-    private function getSubmissionsAccepted($params)
+    public function countSubmissionsReceived($params)
     {
-        $contextId = $params[0];
-        $dateFrom = $params[1];
-        $dateTo = $params[2];
-        $locale = \AppLocale::getLocale();
-
-        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->filterByStatus([STATUS_PUBLISHED])->getMany();
-
-
-        $filteredSubmissions = [];
-        foreach ($submissions as $submission) {
-            $dateSubmitted = strtotime($submission->getDateSubmitted());
-            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
-                $publication = $submission->getCurrentPublication();
-                $filteredSubmissions[] = [
-                    'submission_id' => $submission->getId(),
-                    'title' => $publication->getLocalizedData('title', $locale),
-                    'date' => $submission->getDateSubmitted()
-                ];
-            }
-        }
-        return $filteredSubmissions;
+        return DB::table('submissions as s')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->whereBetween('s.date_submitted', [$params[1], $params[2]])
+            ->distinct()
+            ->count('s.submission_id');
     }
 
-    private function getSubmissionsDeclined($params)
+    public function getSubmissionsReceived($params)
     {
-        $contextId = $params[0];
-        $dateFrom = $params[1];
-        $dateTo = $params[2];
-        $locale = \AppLocale::getLocale();
-
-        $submissions = Repo::submission()->getCollector()->filterByContextIds([$contextId])->filterByStatus([STATUS_DECLINED])->getMany();
-
-
-        $filteredSubmissions = [];
-        foreach ($submissions as $submission) {
-            $dateSubmitted = strtotime($submission->getDateSubmitted());
-            if ($dateSubmitted >= strtotime($dateFrom) && $dateSubmitted <= strtotime($dateTo)) {
-                $publication = $submission->getCurrentPublication();
-                $filteredSubmissions[] = [
-                    'submission_id' => $submission->getId(),
-                    'title' => $publication->getLocalizedData('title', $locale),
-                    'date' => $submission->getDateSubmitted()
-                ];
-            }
-        }
-        return $filteredSubmissions;
+        return DB::table('submissions as s')
+            ->select('s.submission_id as id', 's.date_submitted as date', 's.current_publication_id as pub')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->whereBetween('s.date_submitted', [$params[1], $params[2]])
+            ->distinct()
+            ->get();
     }
 
-    private function getSubmissionsPublished($params)
+    public function countSubmissionsAccepted($params)
     {
-        $contextId = $params[0];
-        $dateFrom = $params[1];
-        $dateTo = $params[2];
-        $locale = \AppLocale::getLocale();
+        return DB::table('submissions as s')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status != " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', '!=', STATUS_DECLINED)
+            ->where('ed.decision', 1)
+            ->whereBetween('ed.date_decided', [$params[1], $params[2]])
+            ->distinct()
+            ->count('s.submission_id');
+    }
 
-        $submissions = Repo::submission()
-            ->getCollector()
-            ->filterByContextIds([$contextId])
-            ->filterByStatus([STATUS_PUBLISHED])->getMany();
+    public function getSubmissionsAccepted($params)
+    {
+        return DB::table('submissions as s')
+            ->select('s.submission_id as id', 'ed.date_decided as date', 's.current_publication_id as pub')
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status != " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', '!=', STATUS_DECLINED)
+            ->where('ed.decision', 1)
+            ->whereBetween('ed.date_decided', [$params[1], $params[2]])
+            ->distinct()
+            ->get();
+    }
 
-        $filteredSubmissions = [];
-        foreach ($submissions as $submission) {
-            $publication = $submission->getCurrentPublication();
-            $datePublished = $publication ? $publication->getData('datePublished') : null;
-            if ($datePublished && strtotime($datePublished) >= strtotime($dateFrom) && strtotime($datePublished) <= strtotime($dateTo)) {
-                $filteredSubmissions[] = [
-                    'submission_id' => $submission->getId(),
-                    'title' => $publication->getLocalizedData('title', $locale),
-                    'date' => $datePublished
-                ];
-            }
-        }
-        return $filteredSubmissions;
+    public function countSubmissionsDeclined($params)
+    {
+        return DB::table('submissions as s')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', STATUS_DECLINED)
+            ->whereIn('ed.decision', [4, 9])
+            ->whereBetween('ed.date_decided', [$params[1], $params[2]])
+            ->distinct()
+            ->count('s.submission_id');
+    }
+
+    public function getSubmissionsDeclined($params)
+    {
+        return DB::table('submissions as s')
+            ->select('s.submission_id as id', 'ed.date_decided as date', 's.current_publication_id as pub')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', STATUS_DECLINED)
+            ->whereIn('ed.decision', [4, 9])
+            ->whereBetween('ed.date_decided', [$params[1], $params[2]])
+            ->distinct()
+            ->get();
+    }
+
+    public function countSubmissionsPublished($params)
+    {
+        return DB::table('submissions as s')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    ORDER BY p2.date_published ASC 
+                    LIMIT 1)"));
+            })
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', STATUS_PUBLISHED)
+            ->whereBetween('p.date_published', [$params[1], $params[2]])
+            ->distinct()
+            ->count('s.submission_id');
+    }
+
+    public function getSubmissionsPublished($params)
+    {
+        return DB::table('submissions as s')
+            ->select('s.submission_id as id', 'p.date_published as date', 's.current_publication_id as pub')
+            ->leftJoin('publications as p', function ($join) {
+                $join->on('p.publication_id', '=', DB::raw("(SELECT p2.publication_id 
+                    FROM publications as p2 
+                    WHERE p2.submission_id = s.submission_id 
+                    AND p2.status = " . STATUS_PUBLISHED . " 
+                    LIMIT 1)"));
+            })
+            ->leftJoin('edit_decisions as ed', 's.submission_id', '=', 'ed.submission_id')
+            ->where('s.context_id', $params[0])
+            ->where('s.submission_progress', 0)
+            ->where(function ($query) {
+                $query->whereNull('p.date_published')
+                    ->orWhereColumn('s.date_submitted', '<', 'p.date_published');
+            })
+            ->where('s.status', STATUS_PUBLISHED)
+            ->whereBetween('p.date_published', [$params[1], $params[2]])
+            ->distinct()
+            ->get();
     }
 }

@@ -57,11 +57,6 @@ class URLs extends AbstractRunner implements InterfaceRunner
         }
     }
 
-    /**
-     * Obtiene los subelementos de "Acerca de" desde el menú primary
-     * @param $request
-     * @return array
-     */
     private function getAboutSubItems($request)
     {
         import('lib.pkp.classes.navigationMenu.NavigationMenuDAO');

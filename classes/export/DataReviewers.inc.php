@@ -8,6 +8,7 @@ use CalidadFECYT\classes\utils\ZipUtils;
 use CalidadFECYT\classes\utils\LocaleUtils;
 use PKP\file\FileManager;
 use APP\facades\Repo;
+use Illuminate\Support\Facades\DB;
 use APP\i18n\AppLocale;
 
 class DataReviewers extends AbstractRunner implements InterfaceRunner
@@ -32,7 +33,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
             $locale = AppLocale::getLocale();
 
             $file = fopen($dirFiles . "/revisores_" . $dateFrom . "_" . $dateTo . ".csv", "w");
-            fputcsv($file, ["ID", "Nombre", "Apellidos", "Institución", "País", "Correo electrónico"]);
+            fputcsv($file, ["ID", "Nombre", "Apellidos", "Institución", "País", "Filiación extranjera", "Correo electrónico"]);
 
             $reviewers = $this->getReviewers([$dateFrom, $dateTo, $this->contextId]);
 
@@ -43,6 +44,8 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
                     $affiliationData = json_decode($affiliation, true);
                     $affiliation = $affiliationData[$locale] ?? ($affiliationData['en_US'] ?? reset($affiliationData));
                 }
+                $isForeign = $reviewer->getCountry() ? ($reviewer->getCountry() !== 'ES' ? 'Sí' : 'No') : '';
+
 
                 fputcsv($file, [
                     $reviewer->getId(),
@@ -50,7 +53,9 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
                     LocaleUtils::getLocalizedDataWithFallback($reviewer, 'familyName', $locale),
                     $affiliation,
                     $reviewer->getCountry() ?? '',
-                    $reviewer->getEmail() ?? '' // Cambiado de getData('email') a getEmail()
+                    $isForeign,
+                    $reviewer->getEmail() ?? '',
+
                 ]);
             }
 
@@ -70,35 +75,32 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
     {
         [$dateFrom, $dateTo, $contextId] = $params;
 
-        $reviewAssignmentDao = \DAORegistry::getDAO('ReviewAssignmentDAO');
-        $result = $reviewAssignmentDao->retrieve(
-            "SELECT DISTINCT ra.reviewer_id
-         FROM review_assignments ra
-         LEFT JOIN submissions s ON (s.submission_id = ra.submission_id)
-         WHERE s.context_id = ?
-         AND ra.date_completed IS NOT NULL
-         AND ra.date_completed >= ?
-         AND ra.date_completed <= ?",
-            [$contextId, $dateFrom, $dateTo]
-        );
+        $result = DB::table('review_assignments as ra')
+            ->leftJoin('submissions as s', 's.submission_id', '=', 'ra.submission_id')
+            ->leftJoin('publications as p', 'p.publication_id', '=', 's.current_publication_id')
+            ->where('s.context_id', $contextId)
+            ->whereNotNull('p.date_published')
+            ->whereBetween('p.date_published', [
+                date('Y-m-d', strtotime($dateFrom)),
+                date('Y-m-d', strtotime($dateTo))
+            ])
+            ->distinct()
+            ->pluck('ra.reviewer_id')
+            ->map(function ($id) {
+                return (int) $id;
+            })
+            ->unique()
+            ->values()
+            ->all();
 
-        $reviewerIds = [];
-        foreach ($result as $row) {
-            $reviewerIds[] = (int) $row->reviewer_id;
-        }
-        $reviewerIds = array_unique($reviewerIds);
-
-        if (empty($reviewerIds)) {
+        if (empty($result)) {
             return new \ArrayIterator([]);
         }
 
         $userRepo = Repo::user();
-
-
         $collector = $userRepo->getCollector()
-            ->filterByUserIds($reviewerIds);
+            ->filterByUserIds($result);
 
-        $users = $collector->getMany();
-        return $users;
+        return $collector->getMany();
     }
 }

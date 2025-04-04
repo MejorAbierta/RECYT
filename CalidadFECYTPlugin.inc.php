@@ -2,17 +2,14 @@
 
 require_once(__DIR__ . '/vendor/autoload.php');
 
-import('lib.pkp.classes.linkAction.request.AjaxModal');
-import('lib.pkp.classes.linkAction.request.RedirectAction');
-import('lib.pkp.classes.navigationMenu.NavigationMenuItem');
-import('lib.pkp.classes.navigationMenu.NavigationMenuItemDAO');
-import('lib.pkp.classes.plugins.GenericPlugin');
 
 use APP\facades\Repo;
 use APP\i18n\AppLocale;
 use CalidadFECYT\classes\main\CalidadFECYT;
+use PKP\plugins\GenericPlugin;
 use Illuminate\Support\Facades\DB;
 use PKP\core\JSONMessage;
+use PKP\linkAction\request\AjaxModal;
 
 class CalidadFECYTPlugin extends GenericPlugin
 {
@@ -30,7 +27,38 @@ class CalidadFECYTPlugin extends GenericPlugin
             $this->addStatsNavigationMenuItem($mainContextId);
             self::$statsMenuItemAdded = true;
         }
+
+
+        $request = Application::get()->getRequest();
+        $templateMgr = TemplateManager::getManager($request);
+        $templateMgr->addJavaScript(
+            'calidadfecyt',
+            $request->getBaseUrl() . '/' . $this->getPluginPath() . '/js/calidadfecyt.js',
+            ['contexts' => 'backend']
+        );
+
+        $templateMgr->addJavaScript(
+            'calidadfecytInit',
+            'if (typeof initializeCalidadFECYT === "function") { $(document).on("ajaxModalLoaded", function() { initializeCalidadFECYT(); }); }',
+            ['inline' => true]
+        );
+
         return $success;
+    }
+
+    public function getName()
+    {
+        return 'CalidadFECYTPlugin';
+    }
+
+    public function getDisplayName()
+    {
+        return __('plugins.generic.calidadfecyt.displayName');
+    }
+
+    public function getDescription()
+    {
+        return __('plugins.generic.calidadfecyt.description');
     }
 
     private function addStatsNavigationMenuItem($contextId)
@@ -63,7 +91,6 @@ class CalidadFECYTPlugin extends GenericPlugin
         }
 
         $contextId = $context->getId();
-        $currentLocale = AppLocale::getLocale();
 
         try {
             $currentYear = date('Y');
@@ -78,7 +105,7 @@ class CalidadFECYTPlugin extends GenericPlugin
             $totalPublished = $submissionStats['published'];
             $totalDeclined = $submissionStats['declined'];
             $rejectionRate = $totalReceived > 0 ? round(($totalDeclined / $totalReceived) * 100, 1) : 0;
-
+            $journalName = $context->getLocalizedName();
             $totalReviewers = $reviewerDetails['totalReviewers'];
             $foreignReviewers = $reviewerDetails['foreignReviewers'];
             $foreignPercentage = $totalReviewers > 0 ? round(($foreignReviewers / $totalReviewers) * 100, 1) : 0;
@@ -92,7 +119,8 @@ class CalidadFECYTPlugin extends GenericPlugin
                 $totalPublished,
                 $rejectionRate,
                 $totalReviewers,
-                $foreignPercentage
+                $foreignPercentage,
+                $journalName
             ) . "</p>";
             $statsContent .= "<h3>Reviewers</h3><ul>";
 
@@ -155,7 +183,6 @@ class CalidadFECYTPlugin extends GenericPlugin
         $reviewers = [];
         $foreignReviewers = 0;
         $totalReviewers = 0;
-        $currentLocale = AppLocale::getLocale();
 
         foreach ($reviewersResult as $row) {
             $reviewerId = $row->reviewer_id;
@@ -184,22 +211,39 @@ class CalidadFECYTPlugin extends GenericPlugin
             'totalReviewers' => $totalReviewers
         ];
     }
-
-    public function getName()
+    public function getSubmissionsByDateRange($contextId, $dateFrom, $dateTo)
     {
-        return 'CalidadFECYTPlugin';
-    }
+        $locale = AppLocale::getLocale();
 
-    public function getDisplayName()
-    {
-        return __('plugins.generic.calidadfecyt.displayName');
-    }
+        $query = DB::table('submissions as s')
+            ->select('s.submission_id', 'pp_title.setting_value as title', 'p.date_published')
+            ->join('publications as p', 'p.publication_id', '=', 's.current_publication_id')
+            ->join('publication_settings as pp_title', 'p.publication_id', '=', 'pp_title.publication_id')
+            ->where('s.context_id', '=', $contextId)
+            ->where('p.status', '=', 3)
+            ->where('pp_title.setting_name', '=', 'title')
+            ->where('pp_title.locale', '=', $locale);
 
-    public function getDescription()
-    {
-        return __('plugins.generic.calidadfecyt.description');
-    }
+        if ($dateFrom) {
+            $query->where('p.date_published', '>=', date('Y-m-d', strtotime($dateFrom)));
+        }
+        if ($dateTo) {
+            $query->where('p.date_published', '<=', date('Y-m-d', strtotime($dateTo)));
+        }
 
+        $results = $query->get();
+        $submissions = [];
+        foreach ($results as $row) {
+            $title = $row->title;
+            $submissions[] = [
+                'id' => $row->submission_id,
+                'title' => strlen($title) > 80 ? mb_substr($title, 0, 77, 'UTF-8') . '...' : $title,
+                'date_published' => $row->date_published,
+            ];
+        }
+
+        return $submissions;
+    }
     public function getActions($request, $verb)
     {
         $router = $request->getRouter();
@@ -233,14 +277,22 @@ class CalidadFECYTPlugin extends GenericPlugin
         switch ($request->getUserVar('verb')) {
             case 'settings':
                 $calidadFECYT = new CalidadFECYT(['request' => $request, 'context' => $context]);
+                $defaultDateFrom = date('Y-m-d', strtotime('-1 year'));
+                $defaultDateTo = date('Y-m-d', strtotime('-1 day'));
                 $templateParams = [
                     'journalTitle' => $context->getLocalizedName(),
-                    'defaultDateFrom' => date('Y-m-d', strtotime('-1 year')),
-                    'defaultDateTo' => date('Y-m-d', strtotime('-1 day')),
+                    'defaultDateFrom' => $defaultDateFrom,
+                    'defaultDateTo' => $defaultDateTo,
                     'baseUrl' => $router->url($request, null, null, 'manage', null, [
                         'plugin' => $this->getName(),
                         'category' => 'generic'
-                    ])
+                    ]),
+                    'fetchSubmissionsUrl' => $router->url($request, null, null, 'manage', null, [
+                        'verb' => 'fetchSubmissions',
+                        'plugin' => $this->getName(),
+                        'category' => 'generic'
+                    ]),
+                    'noSubmissionsMessage' => __('plugins.generic.calidadfecyt.noSubmissionsFound')
                 ];
 
                 $linkActions = [];
@@ -252,10 +304,19 @@ class CalidadFECYTPlugin extends GenericPlugin
                     $linkActions[] = $exportAction;
                 }
 
-                $templateParams['submissions'] = $this->getSubmissions($context->getId());
+                $templateParams['submissions'] = $this->getSubmissionsByDateRange($context->getId(), $defaultDateFrom, $defaultDateTo);
                 $templateParams['exportAllAction'] = true;
                 $templateParams['linkActions'] = $linkActions;
                 $templateMgr->assign($templateParams);
+
+                $templateMgr->assign('editorialUrl', $router->url(
+                    $request,
+                    null,
+                    null,
+                    'manage',
+                    null,
+                    array()
+                ));
 
                 return new JSONMessage(true, $templateMgr->fetch($this->getTemplateResource('settings_form.tpl')));
 
@@ -310,6 +371,18 @@ class CalidadFECYTPlugin extends GenericPlugin
             default:
                 $request->getDispatcher()->handle404();
                 return;
+            case 'fetchSubmissions':
+                try {
+                    $context = $request->getContext();
+                    $dateFrom = $request->getUserVar('dateFrom') ? date('Ymd', strtotime($request->getUserVar('dateFrom'))) : null;
+                    $dateTo = $request->getUserVar('dateTo') ? date('Ymd', strtotime($request->getUserVar('dateTo'))) : null;
+                    $submissions = $this->getSubmissionsByDateRange($context->getId(), $dateFrom, $dateTo);
+
+                    return new JSONMessage(true, $submissions);
+                } catch (Exception $e) {
+                    return new JSONMessage(false, htmlspecialchars($e->getMessage()));
+                }
+                break;
         }
 
         return parent::manage($args, $request);

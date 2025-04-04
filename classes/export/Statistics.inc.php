@@ -34,16 +34,15 @@ class Statistics extends AbstractRunner implements InterfaceRunner
             $summaryDateFrom = date('Ymd', strtotime("$lastCompletedYear-01-01"));
             $summaryDateTo = date('Ymd', strtotime("$lastCompletedYear-12-31"));
 
-            $submissionStats = $this->getSubmissionStats($summaryDateFrom, $summaryDateTo); // For summary
+            $submissionStats = $this->getSubmissionStats($summaryDateFrom, $summaryDateTo);
 
-            $reviewerStats = $this->getReviewerStats($dateFrom, $dateTo); // For CSV
-            $reviewerDetails = $this->getReviewerDetails($summaryDateFrom, $summaryDateTo); // For summary
-
+            $reviewerStats = $this->getReviewerStats($dateFrom, $dateTo);
+            $reviewerDetails = $this->getReviewerDetails($summaryDateFrom, $summaryDateTo);
             $totalReceived = $submissionStats['received'];
             $totalPublished = $submissionStats['published'];
             $totalDeclined = $submissionStats['declined'];
             $rejectionRate = $totalReceived > 0 ? round(($totalDeclined / $totalReceived) * 100, 1) : 0;
-
+            $journalName = $context->getLocalizedName();
             $totalReviewers = $reviewerDetails['totalReviewers'] ?? count($reviewerDetails['reviewers']);
             $foreignReviewers = $reviewerDetails['foreignReviewers'];
             $foreignPercentage = $totalReviewers > 0 ? round(($foreignReviewers / $totalReviewers) * 100, 1) : 0;
@@ -57,7 +56,8 @@ class Statistics extends AbstractRunner implements InterfaceRunner
                 $totalPublished,
                 $rejectionRate,
                 $totalReviewers,
-                $foreignPercentage
+                $foreignPercentage,
+                $journalName
             ) . "\n\n";
 
             foreach ($reviewerDetails['reviewers'] as $reviewer) {

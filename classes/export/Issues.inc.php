@@ -17,7 +17,6 @@ class Issues extends AbstractRunner implements InterfaceRunner
 
     public function run(&$params)
     {
-
         $fileManager = new FileManager();
         $context = $params["context"] ?? null;
         $dirFiles = $params['temporaryFullFilePath'] ?? '';
@@ -38,8 +37,10 @@ class Issues extends AbstractRunner implements InterfaceRunner
                 $nameFile = "/" . $volume . $number . $year;
                 $file = fopen($dirFiles . $nameFile . ".csv", "w");
 
+                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
                 if (!empty($data['results'])) {
-                    $columns = ["Sección", "Título", "DOI"];
+                    $columns = [];
                     for ($a = 1; $a <= $countAuthors; $a++) {
                         $columns = array_merge($columns, [
                             "Nombre (autor " . $a . ")",
@@ -48,28 +49,43 @@ class Issues extends AbstractRunner implements InterfaceRunner
                             "Rol (autor " . $a . ")",
                         ]);
                     }
-                    fputcsv($file, array_values($columns));
+                    $columns = array_merge($columns, ["Sección", "Filiación extranjera", "Título", "DOI", "Número de autores"]);
+                    fputcsv($file, $columns, ';');
 
                     foreach ($submissions as $submission) {
-                        $results = [$submission['section'], $submission['title'], $submission['doi']];
+                        $results = [];
                         $arrayValues = array_values($submission['authors']);
-                        $authorCount = count($arrayValues);
-                        for ($a = 0; $a < $authorCount; $a++) {
 
-                            array_push(
-                                $results,
-                                $arrayValues[$a]['givenName'],
-                                $arrayValues[$a]['familyName'],
-                                $arrayValues[$a]['affiliation'],
-                                $arrayValues[$a]['userGroup']
-                            );
+                        for ($a = 0; $a < $countAuthors; $a++) {
+                            if (isset($arrayValues[$a])) {
+                                $results = array_merge($results, [
+                                    $arrayValues[$a]['givenName'] ?? '',
+                                    $arrayValues[$a]['familyName'] ?? '',
+                                    $arrayValues[$a]['affiliation'] ?? '',
+                                    $arrayValues[$a]['userGroup'] ?? ''
+                                ]);
+                            } else {
+                                $results = array_merge($results, ['', '', '', '']);
+                            }
                         }
-                        fputcsv($file, array_values($results));
+
+                        $hasForeignAuthor = array_reduce($submission['authors'], function ($carry, $author) {
+                            return $carry || (!empty($author['country']) && $author['country'] !== 'ES');
+                        }, false);
+
+                        $results = array_merge($results, [
+                            $submission['section'] ?? '',
+                            $hasForeignAuthor ? 'Sí' : 'No',
+                            $submission['title'] ?? '',
+                            $submission['doi'] ?? '',
+                            count($submission['authors']),
+                        ]);
+
+                        fputcsv($file, $results, ';');
                     }
                 } else {
-                    fputcsv($file, ["Este envío no tiene artículos"]);
+                    fputcsv($file, ["Este envío no tiene artículos"], ';');
                 }
-
                 fclose($file);
             }
 
@@ -82,6 +98,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
             throw new \Exception('Se ha producido un error: ' . $e->getMessage());
         }
     }
+
 
     private function getData($issueId)
     {
