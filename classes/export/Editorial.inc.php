@@ -13,6 +13,9 @@ use APP\i18n\AppLocale;
 use PKP\submission\SubmissionComment;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 use PKP\log\EmailLogDAO;
+use PKP\query\Query;
+use PKP\query\QueryDAO;
+use PKP\note\NoteDAO;
 
 class Editorial extends AbstractRunner implements InterfaceRunner
 {
@@ -260,9 +263,36 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         $emailLogs = $emailLogDao->getByAssoc(ASSOC_TYPE_SUBMISSION, $submission->getId())->toArray();
 
         $entries = array_merge(iterator_to_array($eventLogs), $emailLogs);
+
+        $queryDao = new QueryDAO();
+        $queries = $queryDao->getByAssoc(ASSOC_TYPE_SUBMISSION, $submission->getId())->toArray();
+
+        $noteDao = new NoteDAO();
+        foreach ($queries as $query) {
+            $notes = $noteDao->getByAssoc(ASSOC_TYPE_QUERY, $query->getId())->toArray();
+            $entries = array_merge($entries, $notes);
+        }
         usort($entries, function ($a, $b) {
-            $dateA = $a instanceof \PKP\log\EmailLogEntry ? $a->getDateSent() : $a->getDateLogged();
-            $dateB = $b instanceof \PKP\log\EmailLogEntry ? $b->getDateSent() : $b->getDateLogged();
+            if ($a instanceof \PKP\log\EmailLogEntry) {
+                $dateA = $a->getDateSent();
+            } elseif ($a instanceof \PKP\log\SubmissionEventLogEntry) {
+                $dateA = $a->getDateLogged();
+            } elseif ($a instanceof \PKP\note\Note) {
+                $dateA = $a->getDateCreated();
+            } else {
+                $dateA = $a->getDateLogged();
+            }
+
+            if ($b instanceof \PKP\log\EmailLogEntry) {
+                $dateB = $b->getDateSent();
+            } elseif ($b instanceof \PKP\log\SubmissionEventLogEntry) {
+                $dateB = $b->getDateLogged();
+            } elseif ($b instanceof \PKP\note\Note) {
+                $dateB = $b->getDateCreated();
+            } else {
+                $dateB = $b->getDateLogged();
+            }
+
             return strcmp($dateB, $dateA);
         });
 
@@ -284,6 +314,10 @@ class Editorial extends AbstractRunner implements InterfaceRunner
 
         foreach ($entries as $entry) {
             $userId = $entry instanceof \PKP\log\EmailLogEntry ? $entry->getSenderId() : $entry->getUserId();
+
+
+
+
             $user = Repo::user()->get($userId);
 
             if ($entry instanceof \PKP\log\EmailLogEntry) {
@@ -320,6 +354,15 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     $message = $entry->getMessage() . ' (Error: ' . $e->getMessage() . ' | Params: ' . json_encode($combinedParams) . ')';
                 }
                 fputcsv($file, [$entry->getId(), $user ? $user->getFullName() : '', $entry->getDateLogged(), $message]);
+            } elseif ($entry instanceof \PKP\note\Note) {
+                fputcsv($file, [
+                    $entry->getId(),
+                    $user ? $user->getFullName() : '',
+                    $entry->getDateCreated(),
+                    $entry->getTitle(). ': ' . strip_tags($entry->getContents()),
+                ]);
+
+
             } else {
                 fputcsv($file, [
                     $entry->getId(),
