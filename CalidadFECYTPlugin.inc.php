@@ -171,11 +171,11 @@ class CalidadFECYTPlugin extends GenericPlugin
     {
         $reviewAssignmentDao = DAORegistry::getDAO('ReviewAssignmentDAO');
         $reviewersResult = $reviewAssignmentDao->retrieve(
-            "SELECT DISTINCT ra.reviewer_id 
-             FROM review_assignments ra 
-             JOIN submissions s ON ra.submission_id = s.submission_id 
-             WHERE s.context_id = ? 
-             AND ra.date_completed IS NOT NULL 
+            "SELECT DISTINCT ra.reviewer_id
+             FROM review_assignments ra
+             JOIN submissions s ON ra.submission_id = s.submission_id
+             WHERE s.context_id = ?
+             AND ra.date_completed IS NOT NULL
              AND ra.date_completed BETWEEN ? AND ?",
             [$contextId, date('Y-m-d', strtotime($dateFrom)), date('Y-m-d', strtotime($dateTo))]
         );
@@ -304,7 +304,10 @@ class CalidadFECYTPlugin extends GenericPlugin
                     $linkActions[] = $exportAction;
                 }
 
-                $templateParams['submissions'] = $this->getSubmissionsByDateRange($context->getId(), $defaultDateFrom, $defaultDateTo);
+                $lastCompletedYear = date('Y') - 1;
+                $submissionsDateFrom = date('Y-m-d', strtotime("$lastCompletedYear-01-01"));
+
+                $templateParams['submissions'] = $this->getSubmissionsByDateRange($context->getId(), $submissionsDateFrom, $defaultDateTo);
                 $templateParams['exportAllAction'] = true;
                 $templateParams['linkActions'] = $linkActions;
                 $templateMgr->assign($templateParams);
