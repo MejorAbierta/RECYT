@@ -459,7 +459,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             $file = fopen($mainFolder . '/ID_archivos.txt', "w");
             fwrite($file, $listId);
             fclose($file);
-git status        }
+        }
     }
 
     public function getDeclinedSubmissions($issues)
