@@ -46,7 +46,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                         ->getMany();
 
                     foreach ($authors as $author) {
-                        $$isForeign = $author->getData('country') ? ($author->getData('country') !== 'ES' ? 'Sí' : 'No') : '';
+                        $isForeign = $author->getData('country') ? ($author->getData('country') !== 'ES' ? 'Sí' : 'No') : '';
                         fputcsv($file, [
                             $submission->getId(),
                             $publication->getStoredPubId('doi') ?? '',

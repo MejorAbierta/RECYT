@@ -31,7 +31,6 @@ document.addEventListener("DOMContentLoaded", function () {
           encodeURIComponent(dateTo),
       })
         .then((response) => {
-          console.log("Fetch response status:", response.status);
           return response.json();
         })
         .then((data) => {
@@ -43,11 +42,6 @@ document.addEventListener("DOMContentLoaded", function () {
               option.textContent = submission.id + " - " + submission.title;
               submissionSelect.appendChild(option);
             });
-            console.log(
-              "Dropdown updated with",
-              data.content.length,
-              "submissions"
-            );
           } else {
             const option = document.createElement("option");
             option.value = "";

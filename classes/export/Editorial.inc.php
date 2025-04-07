@@ -13,7 +13,6 @@ use APP\i18n\AppLocale;
 use PKP\submission\SubmissionComment;
 use PKP\submission\reviewAssignment\ReviewAssignment;
 use PKP\log\EmailLogDAO;
-use PKP\query\Query;
 use PKP\query\QueryDAO;
 use PKP\note\NoteDAO;
 
@@ -58,7 +57,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             if (method_exists($this, 'getSubmissionsFiles')) {
                 $this->getSubmissionsFiles($submissionObj->getId(), $fileManager, $dirFiles);
             } else {
-                error_log("Método getSubmissionsFiles no definido en Editorial");
+
                 throw new \Exception("Método getSubmissionsFiles no encontrado");
             }
 
@@ -136,7 +135,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         ];
 
         $file = fopen($dirFiles . "/Informes_evaluacion.csv", "w");
-        fputcsv($file, array_keys($columns));
+        fputcsv($file, $columns);
 
         $locale = AppLocale::getLocale();
 
@@ -305,12 +304,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
 
         $file = fopen($dirFiles . "/Historial.csv", "w");
 
-        if (fputcsv($file, $headers) === false) {
-            error_log("Error al escribir las cabeceras en Historial.csv");
-        } else {
-            error_log("Cabeceras escritas correctamente en Historial.csv: " . implode(',', $headers));
-        }
-
+        fputcsv($file, $headers);
 
         foreach ($entries as $entry) {
             $userId = $entry instanceof \PKP\log\EmailLogEntry ? $entry->getSenderId() : $entry->getUserId();
@@ -359,7 +353,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     $entry->getId(),
                     $user ? $user->getFullName() : '',
                     $entry->getDateCreated(),
-                    $entry->getTitle(). ': ' . strip_tags($entry->getContents()),
+                    $entry->getTitle() . ': ' . strip_tags($entry->getContents()),
                 ]);
 
 
@@ -393,7 +387,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
     }
     public function getSubmissionsFiles($submissionId, $fileManager, $dirFiles)
     {
-        error_log("getSubmissionsFiles called with submissionId: " . $submissionId);
         $submissionFileRepo = Repo::submissionFile();
         $submissionFiles = $submissionFileRepo->getCollector()->filterBySubmissionIds([$submissionId])->getMany();
 
@@ -409,8 +402,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                 $id = $submissionFile->getId();
                 $path = \Config::getVar('files', 'files_dir') . '/' . $submissionFile->getData('path');
                 $fileStage = $submissionFile->getData('fileStage');
-                $submissionIdFromFile = $submissionFile->getData('submissionId');
-                error_log("Processing file ID: $id, submissionId: $submissionIdFromFile, fileStage: $fileStage, path: $path");
                 $folder = $mainFolder . '/';
                 switch ($fileStage) {
                     case SUBMISSION_FILE_SUBMISSION:
@@ -450,7 +441,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                         $folder .= 'submission/query';
                         break;
                     default:
-                        error_log("Unknown fileStage: $fileStage for file ID: $id");
                         continue;
                 }
 
@@ -461,19 +451,15 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     }
                     $destination = $folder . '/' . $id . '_' . $submissionFile->getLocalizedData('name');
                     copy($path, $destination);
-                    error_log("Copied file to: $destination");
                 } else {
                     $listId .= $id . "\t Archivo no encontrado\n";
-                    error_log("File not found at path: $path");
                 }
             }
 
             $file = fopen($mainFolder . '/ID_archivos.txt', "w");
             fwrite($file, $listId);
             fclose($file);
-        } else {
-            error_log("No files found for submissionId: $submissionId");
-        }
+git status        }
     }
 
     public function getDeclinedSubmissions($issues)

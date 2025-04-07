@@ -143,10 +143,10 @@ msgid "plugins.generic.calidadfecyt.stats.csv.num_reviews"
 msgstr "Número de revisiones"
 
 msgid "plugins.generic.calidadfecyt.stats.csv.accepted"
-msgstr "Recomendaciones aceptadas"
+msgstr "Revisiones aceptadas"
 
 msgid "plugins.generic.calidadfecyt.stats.csv.declined"
-msgstr "Recomendaciones rechazadas"
+msgstr "Revisiones rechazadas"
 
 # Statistics Text
 msgid "plugins.generic.calidadfecyt.stats.header"
