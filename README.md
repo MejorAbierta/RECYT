@@ -36,4 +36,4 @@ Activar el plugin desde el OJS:
 Una vez que el plugin está activado, se mostrará, en las acciones del plugin, un enlace 'Ajustes' que abrirá una nueva ventana.  
 Desde esta ventana se puede descargar la documentación de la revista, haciendo click en el botón 'Exportar' de cada sección.
 
-Para más detalles, revisar el [manual del plugin](Plugin-FECYT-Glaux.pdf)
+Para más detalles, revisar el [manual de instrucciones](Plugin-FECYT-Glaux.pdf)
