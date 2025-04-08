@@ -71,23 +71,28 @@ class CalidadFECYTPlugin extends GenericPlugin
         $navigationMenuItem = $navigationMenuItemDao->getByPath($contextId, 'fecyt-stats');
 
         if (!$navigationMenuItem) {
-            $statsContent = $this->generateStatsContent($context);
-
+            $statsContentEN = $this->generateStatsContent($context, 'en');
+            $statsContentES = $this->generateStatsContent($context, 'es');
             $navigationMenuItem = $navigationMenuItemDao->newDataObject();
             $navigationMenuItem->setPath('fecyt-stats');
             $navigationMenuItem->setType('NMI_TYPE_CUSTOM');
             $navigationMenuItem->setContextId($contextId);
-            $navigationMenuItem->setTitle(__('plugins.generic.calidadfecyt.stats.menu'), 'en_US');
-            $navigationMenuItem->setContent($statsContent, 'en_US');
+            $navigationMenuItem->setTitle(__('plugins.generic.calidadfecyt.stats.menu'), 'en');
+            $navigationMenuItem->setTitle(__('plugins.generic.calidadfecyt.stats.menu'), 'es');
+            $navigationMenuItem->setContent($statsContentEN, 'en');
+            $navigationMenuItem->setContent($statsContentES, 'es');
 
             $navigationMenuItemDao->insertObject($navigationMenuItem);
+
+
+
         }
     }
 
-    private function generateStatsContent($context)
+    private function generateStatsContent($context, $locale)
     {
         if (!$context) {
-            return "<h2>FECYT Statistics</h2><p>Error: Revista no encontrada</p>";
+            return "<h2>" . __("plugins.generic.calidadfecyt.stats.header", [], $locale) . "</h2><p>" . __("plugins.generic.calidadfecyt.stats.error.noJournal", [], $locale) . "</p>";
         }
 
         $contextId = $context->getId();
@@ -110,9 +115,9 @@ class CalidadFECYTPlugin extends GenericPlugin
             $foreignReviewers = $reviewerDetails['foreignReviewers'];
             $foreignPercentage = $totalReviewers > 0 ? round(($foreignReviewers / $totalReviewers) * 100, 1) : 0;
 
-            $statsContent = "<h2>" . sprintf(__("plugins.generic.calidadfecyt.stats.header"), $lastCompletedYear) . "</h2>";
+            $statsContent = "<h2>" . sprintf(__("plugins.generic.calidadfecyt.stats.header", [], $locale), $lastCompletedYear) . "</h2>";
             $statsContent .= "<p>" . sprintf(
-                __("plugins.generic.calidadfecyt.stats.summary"),
+                __("plugins.generic.calidadfecyt.stats.summary", [], $locale),
                 $totalReceived,
                 $lastCompletedYear,
                 $lastCompletedYear,
@@ -122,7 +127,7 @@ class CalidadFECYTPlugin extends GenericPlugin
                 $foreignPercentage,
                 $journalName
             ) . "</p>";
-            $statsContent .= "<h3>Reviewers</h3><ul>";
+            $statsContent .= "<h3>" . __("plugins.generic.calidadfecyt.stats.reviewers", [], $locale) . "</h3><ul>";
 
             foreach ($reviewerDetails['reviewers'] as $reviewer) {
                 $statsContent .= "<li>" . htmlspecialchars($reviewer['fullName']) .
@@ -133,7 +138,7 @@ class CalidadFECYTPlugin extends GenericPlugin
 
             return $statsContent;
         } catch (\Exception $e) {
-            return "<h2>FECYT Statistics</h2><p>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+            return "<h2>" . __("plugins.generic.calidadfecyt.stats.header", [], $locale) . "</h2><p>" . sprintf(__("plugins.generic.calidadfecyt.stats.error.generic", [], $locale), htmlspecialchars($e->getMessage())) . "</p>";
         }
     }
 
