@@ -148,6 +148,9 @@ msgstr "Revisiones aceptadas"
 msgid "plugins.generic.calidadfecyt.stats.csv.declined"
 msgstr "Revisiones rechazadas"
 
+msgid "plugins.generic.calidadfecyt.stats.reviewers"
+msgstr "Revisores"
+
 # Statistics Text
 msgid "plugins.generic.calidadfecyt.stats.header"
 msgstr "Evaluadores de la revista del año %s y tasa de rechazo"
