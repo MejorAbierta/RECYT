@@ -50,7 +50,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             if (!$publication || $submissionObj->getStatus() !== PKPSubmission::STATUS_PUBLISHED) {
                 throw new \Exception("El envío no tiene una publicación válida o no está publicado");
             }
-
+          
             $this->generateReviewReport($submissionObj, $dirFiles);
             $this->generateHistoryFile($submissionObj, $dirFiles);
             $this->getReview($submissionObj, $context, $dirFiles);
@@ -89,7 +89,9 @@ class Editorial extends AbstractRunner implements InterfaceRunner
 
     public function generateReviewReport($submission, $dirFiles)
     {
+
         $reviewAssignmentDao = \DAORegistry::getDAO('ReviewAssignmentDAO'); /* @var $reviewAssignmentDao \ReviewAssignmentDAO */
+
         $reviewAssignments = $reviewAssignmentDao->getBySubmissionId($submission->getId());
 
         $comments = $this->getComments($submission->getId());
@@ -135,21 +137,25 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         ];
 
         $file = fopen($dirFiles . "/Informes_evaluacion.csv", "w");
+      
         fputcsv($file, $columns);
 
         $locale = AppLocale::getLocale();
 
+
         foreach ($reviewAssignments as $review) {
             $reviewer = Repo::user()->get($review->getReviewerId());
             $overdue = $this->getOverdueDays($review);
-            $publication = $submission->getCurrentPublication();
+            
 
             $row = [
                 'stage_id' => __(WorkflowStageDAO::getTranslationKeyFromId($review->getStageId())),
                 'round' => $review->getRound(),
                 'submission' => $submission->getLocalizedTitle(),
                 'submission_id' => $submission->getId(),
+
                 'doi' => $publication ? $publication->getStoredPubId('doi') : '',
+
                 'reviewer' => $reviewer ? $reviewer->getFullName() : '',
                 'user_given' => $reviewer ? $reviewer->getGivenName($locale) : '',
                 'user_family' => $reviewer ? $reviewer->getFamilyName($locale) : '',
@@ -180,6 +186,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
     }
     private function getComments($submissionId)
     {
+
         $submissionCommentDao = \DAORegistry::getDAO('SubmissionCommentDAO'); /* @var $submissionCommentDao \SubmissionCommentDAO */
         $commentsIterator = $submissionCommentDao->getSubmissionComments($submissionId, SubmissionComment::COMMENT_TYPE_PEER_REVIEW);
 
@@ -309,9 +316,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
         foreach ($entries as $entry) {
             $userId = $entry instanceof \PKP\log\EmailLogEntry ? $entry->getSenderId() : $entry->getUserId();
 
-
-
-
             $user = Repo::user()->get($userId);
 
             if ($entry instanceof \PKP\log\EmailLogEntry) {
@@ -342,6 +346,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     'submissionFile' => $params['originalFileName'] ?? $params['name'] ?? 'Archivo no especificado'
                 ];
                 $combinedParams = array_merge($defaultParams, $params);
+
                 try {
                     $message = __($entry->getMessage(), $combinedParams);
                 } catch (\Exception $e) {
@@ -355,7 +360,6 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                     $entry->getDateCreated(),
                     $entry->getTitle() . ': ' . strip_tags($entry->getContents()),
                 ]);
-
 
             } else {
                 fputcsv($file, [
@@ -380,11 +384,13 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                         'filename' => $entry->getLocalizedData('filename'),
                         'userName' => $entry->getLocalizedData('userName'),
                     )),
+
                 ]);
             }
         }
         fclose($file);
     }
+
     public function getSubmissionsFiles($submissionId, $fileManager, $dirFiles)
     {
         $submissionFileRepo = Repo::submissionFile();
@@ -404,6 +410,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
                 $fileStage = $submissionFile->getData('fileStage');
                 $folder = $mainFolder . '/';
                 switch ($fileStage) {
+
                     case SUBMISSION_FILE_SUBMISSION:
                         $folder .= 'submission';
                         break;
@@ -459,6 +466,7 @@ class Editorial extends AbstractRunner implements InterfaceRunner
             $file = fopen($mainFolder . '/ID_archivos.txt', "w");
             fwrite($file, $listId);
             fclose($file);
+
         }
     }
 

@@ -26,6 +26,7 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
         $this->contextId = $context->getId();
 
         try {
+          
             if (!isset($params['dateFrom']) || !isset($params['dateTo'])) {
                 throw new \Exception("Date range parameters are required.");
             }
@@ -41,15 +42,15 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
 
             $contextDao = \APP\core\Application::getContextDAO();
             $data = "Nº de artículos para la revista " . $contextDao->getById($this->contextId)->getPath();
+
             $data .= " desde el " . date('d-m-Y', strtotime($dateFrom)) . " hasta el " . date('d-m-Y', strtotime($dateTo)) . "\n";
             $data .= "Recibidos: " . $this->countSubmissionsReceived($params2) . "\n";
             $data .= "Aceptados: " . $this->countSubmissionsAccepted($params2) . "\n";
             $data .= "Rechazados: " . $this->countSubmissionsDeclined($params2) . "\n";
             $data .= "Publicados: " . $this->countSubmissionsPublished($paramsPublished);
 
-            $file = fopen($dirFiles . "/numero_articulos.txt", "w");
-            fwrite($file, $data);
-            fclose($file);
+            $filePath = $dirFiles . "/numero_articulos.txt";
+            file_put_contents($filePath, $data);
 
             $this->generateCsv($this->getSubmissionsReceived($params2), 'recibidos', $dirFiles);
             $this->generateCsv($this->getSubmissionsAccepted($params2), 'aceptados', $dirFiles);
@@ -83,7 +84,9 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
                 ]);
             }
             fclose($file);
+
         }
+        fclose($file);
     }
 
     public function countSubmissionsReceived($params)
@@ -279,5 +282,6 @@ class CountArticles extends AbstractRunner implements InterfaceRunner
             ->whereBetween('p.date_published', [$params[1], $params[2]])
             ->distinct()
             ->get();
+
     }
 }

@@ -222,3 +222,4 @@ msgstr "Journal reviewers and rejection rate"
 
 msgid "plugins.generic.calidadfecyt.stats.menu.description"
 msgstr "Displays a summary of submission and reviewer statistics for the last completed year."
+

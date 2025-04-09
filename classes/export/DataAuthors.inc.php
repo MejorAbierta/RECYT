@@ -27,6 +27,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
         $this->contextId = $context->getId();
 
         try {
+
             $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
             $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
             $locale = AppLocale::getLocale();
@@ -46,6 +47,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
                         ->getMany();
 
                     foreach ($authors as $author) {
+
                         $isForeign = $author->getData('country') ? ($author->getData('country') !== 'ES' ? 'Sí' : 'No') : '';
                         fputcsv($file, [
                             $submission->getId(),
@@ -74,6 +76,7 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
         }
     }
 
+
     private function getSubmissions($dateFrom, $dateTo)
     {
         $submissionRepo = Repo::submission();
@@ -95,5 +98,6 @@ class DataAuthors extends AbstractRunner implements InterfaceRunner
         }
 
         return $filteredSubmissions;
+
     }
 }

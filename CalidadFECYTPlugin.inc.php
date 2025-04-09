@@ -28,7 +28,6 @@ class CalidadFECYTPlugin extends GenericPlugin
             self::$statsMenuItemAdded = true;
         }
 
-
         $request = Application::get()->getRequest();
         $templateMgr = TemplateManager::getManager($request);
         $templateMgr->addJavaScript(
@@ -45,6 +44,7 @@ class CalidadFECYTPlugin extends GenericPlugin
 
         return $success;
     }
+
 
     public function getName()
     {
@@ -422,6 +422,7 @@ class CalidadFECYTPlugin extends GenericPlugin
             ->where('pp_title.setting_name', 'title')
             ->where('pp_title.locale', $locale)
             ->get();
+
 
         $submissions = [];
         foreach ($results as $row) {

@@ -28,6 +28,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
         $this->contextId = $context->getId();
 
         try {
+
             $dateTo = $params['dateTo'] ?? date('Ymd', strtotime("-1 day"));
             $dateFrom = $params['dateFrom'] ?? date("Ymd", strtotime("-1 year", strtotime($dateTo)));
             $locale = AppLocale::getLocale();
@@ -55,6 +56,7 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
                     $reviewer->getCountry() ?? '',
                     $isForeign,
                     $reviewer->getEmail() ?? '',
+
 
                 ]);
             }
@@ -102,5 +104,6 @@ class DataReviewers extends AbstractRunner implements InterfaceRunner
             ->filterByUserIds($result);
 
         return $collector->getMany();
+
     }
 }

@@ -41,6 +41,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
 
                 if (!empty($data['results'])) {
                     $columns = [];
+
                     for ($a = 1; $a <= $countAuthors; $a++) {
                         $columns = array_merge($columns, [
                             "Nombre (autor " . $a . ")",
@@ -85,6 +86,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
                     }
                 } else {
                     fputcsv($file, ["Este envío no tiene artículos"], ';');
+
                 }
                 fclose($file);
             }
@@ -98,7 +100,6 @@ class Issues extends AbstractRunner implements InterfaceRunner
             throw new \Exception('Se ha producido un error: ' . $e->getMessage());
         }
     }
-
 
     private function getData($issueId)
     {
@@ -120,7 +121,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
                 ->filterByPublicationIds([$publication->getId()])
                 ->getMany()
                 ->toArray();
-
+          
             $maxAuthors = max($maxAuthors, count($authors));
 
             $section = Repo::section()->get($publication->getData('sectionId'));
@@ -137,6 +138,7 @@ class Issues extends AbstractRunner implements InterfaceRunner
                         'affiliation' => LocaleUtils::getLocalizedDataWithFallback($author, 'affiliation'),
                         'userGroup' => $userGroup ? $userGroup->getLocalizedName() : '',
                         'country' => $author->getCountry() ?? ''
+
                     ];
                 }, $authors)
             ];
