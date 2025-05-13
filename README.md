@@ -39,6 +39,13 @@ From this window you can download the journal documentation, clicking on the 'Ex
 
 ---
 
+## 🛠️ Contribuir al proyecto
+
+Puedes contribuir al proyecto de las siguientes maneras:
+- Si detectas errores o tienes dudas sobre el funcionamiento, publica un [issue](#).
+- Para contribuir con mejoras en el desarrollo, haz un fork del proyecto, crea una rama de funcionalidad y haz un Pull Request (Pr).
+- Para colaborar de forma continuada, contacta con nosotros/as en xxxx.
+
 # Plugin de Calidad FECYT
 
 Módulo para OJS que automatiza la descarga de parte de la documentación requerida por la Fundación Española para la Ciencia y Tecnología en los procesos de acreditación para la obtención y/o renovación del sello de calidad FECYT.  
