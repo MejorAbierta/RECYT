@@ -1,5 +1,12 @@
 [Spanish ReadMe](#plugin-de-calidad-fecyt)
 
+## 🛠️ Contribute to the project
+
+You can contribute to the project in the following ways:
+- If you detect errors or have doubts about the operation, publish a [issue](#).
+- To contribute to development improvements, make a project fork, create a branch of functionality and make a Pull Request (Pr).
+- To collaborate continuously, contact us at xxxx.
+
 # FECYT Quality Plugin 
 OJS module that automates the download of part of the documentation required by the Spanish Foundation for Science and Technology in the accreditation processes for obtaining and/or renewing the FECYT quality seal.
 
