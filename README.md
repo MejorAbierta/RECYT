@@ -50,7 +50,6 @@ From this window you can download the journal documentation, clicking on the 'Ex
 Puedes contribuir al proyecto de las siguientes maneras:
 - Si detectas errores o tienes dudas sobre el funcionamiento, publica un [issue](#).
 - Para contribuir con mejoras en el desarrollo, haz un fork del proyecto, crea una rama de funcionalidad y haz un Pull Request (Pr).
-- Para colaborar de forma continuada, contacta con nosotros/as en xxxx.
 
 # Plugin de Calidad FECYT
 
